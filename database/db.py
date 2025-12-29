@@ -20,6 +20,9 @@ class Database:
         db_name = os.getenv('DB_NAME', 'telegram_bot')
         db_user = os.getenv('DB_USER', 'postgres')
         db_password = os.getenv('DB_PASSWORD', '')
+
+        logger.info(f"DB_NAME from env: {os.getenv('DB_NAME')}")
+        logger.info(f"DB_USER from env: {os.getenv('DB_USER')}")
         
         database_url = f'postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}'
         

@@ -10,7 +10,7 @@ from telegram.ext import (
     ConversationHandler
 )
 from dotenv import load_dotenv
-from database import db, User, Message
+from database import db, User
 
 # Load environment variables
 load_dotenv()
@@ -147,17 +147,11 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     help_text = """
 📖 *Available Commands:*
 
-/add_spend - Add a new spend entry
-/show_spends - Show your spend history
 /help - Show this help message
-/stats - Get your usage statistics
-/load_check - Load a check image or data
 /logout - Log out from the bot
 
 📱 *Menu Buttons:*
-• 📊 Show Spends - View your spend history
 • ❓ Help - Show this help
-• 💬 Load Check - Prompt to load a check
 • 🚪 Logout - Log out from the bot
 
     """
@@ -172,63 +166,21 @@ async def spends_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     try:
         # Get user stats
-        message_count = session.query(Message).filter_by(telegram_id=user.id).count()
         db_user = session.query(User).filter_by(telegram_id=user.id).first()
         
-        
+        if db_user:
+            stats_text = f"""
+📊 *Your Statistics:*
+
+👤 Username: @{user.username or 'N/A'}
+📅 Registered: {db_user.created_at.strftime('%Y-%m-%d %H:%M')}
+            """
             await update.message.reply_text(stats_text, parse_mode='Markdown', reply_markup=get_main_menu())
         else:
             await update.message.reply_text("Please use /start first!", reply_markup=get_main_menu())
     except Exception as e:
         logger.error(f"Error in stats_command: {e}")
         await update.message.reply_text("Sorry, couldn't retrieve your statistics.", reply_markup=get_main_menu())
-    finally:
-        session.close()
-
-
-@is_authenticated
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle regular text messages and menu button presses"""
-    user = update.effective_user
-    message_text = update.message.text
-    
-    # Handle menu button presses
-    if message_text == "📊 My Stats":
-        await stats_command(update, context)
-        return
-    elif message_text == "❓ Help":
-        await help_command(update, context)
-        return
-    elif message_text == "💬 Send Message":
-        await update.message.reply_text(
-            "📝 Please type your message below and I'll save it to the database:",
-            reply_markup=get_main_menu()
-        )
-        return
-    elif message_text == "🚪 Logout":
-        await logout_command(update, context)
-        return
-    
-    # Save regular messages to database
-    session = db.get_session()
-    
-    try:
-        # Save message to database
-        message = Message(
-            telegram_id=user.id,
-            message_text=message_text
-        )
-        session.add(message)
-        session.commit()
-        
-        await update.message.reply_text(
-            f"✅ Message saved! You said: \"{message_text[:50]}{'...' if len(message_text) > 50 else ''}\"",
-            reply_markup=get_main_menu()
-        )
-        logger.info(f"Message saved from user {user.id}")
-    except Exception as e:
-        logger.error(f"Error saving message: {e}")
-        await update.message.reply_text("Sorry, couldn't save your message.", reply_markup=get_main_menu())
     finally:
         session.close()
 
@@ -283,9 +235,8 @@ def main():
     # Add handlers
     application.add_handler(conv_handler)
     application.add_handler(CommandHandler("help", help_command))
-    application.add_handler(CommandHandler("stats", stats_command))
+    application.add_handler(CommandHandler("spends", spends_menu))
     application.add_handler(CommandHandler("logout", logout_command))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     application.add_error_handler(error_handler)
     
     # Start bot
