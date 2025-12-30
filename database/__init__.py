@@ -1,4 +1,4 @@
 from database.db import db
-from database.models import User
+from database.models import User, Transaction, Base
 
-__all__ = ['db', 'User']
+__all__ = ['db', 'User', 'Transaction', 'Base']
