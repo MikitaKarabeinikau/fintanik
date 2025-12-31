@@ -37,6 +37,7 @@ class Account(Base):
     
     id = Column(Integer, primary_key=True)
     name = Column(String(255), nullable=False)
+    account_type = Column(String(50), default='SPENDING')  # e.g., 'spending', 'savings'
     owner_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     

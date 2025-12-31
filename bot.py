@@ -1,3 +1,4 @@
+from email.mime import application
 import os
 from commands.account_managment import WAITING_ACCOUNT_NAME, create_account, handle_invite_callback, handle_leave_callback, invite_user, join_account, leave_account, leave_account, list_accounts, receive_account_name
 from commands.cancel import cancel_command
@@ -21,11 +22,17 @@ from commands.help import help_command
 from commands.logout import logout_command
 from utils.auth import check_password
 from utils.config import Settings
+from menus.spendings_menu import (
+    handle_spendings_menu, 
+    receive_new_account_name, 
+    WAITING_FOR_NEW_ACCOUNT_NAME
+)
+
 
 # Load environment variables
 load_dotenv()
 
-
+emoji = Settings.emoji
 
 # Conversation states
 WAITING_FOR_PASSWORD = 1
@@ -78,6 +85,17 @@ def main():
         fallbacks=[CommandHandler("cancel", cancel_command)],
     )
 
+    spendings_conv = ConversationHandler(
+    entry_points=[MessageHandler(filters.Regex(f"^{emoji('NEW')} Add New Account$"), handle_spendings_menu)],
+    states={
+        WAITING_FOR_NEW_ACCOUNT_NAME: [
+            MessageHandler(filters.TEXT & ~filters.COMMAND, receive_new_account_name)
+        ],
+    },
+    fallbacks=[CommandHandler('cancel', cancel_command)],
+    )
+
+   
     # Add handlers
     application.add_handler(conv_handler)
     application.add_handler(CommandHandler('help', help_command))
@@ -94,6 +112,8 @@ def main():
     )
 
     application.add_handler(account_conv)
+    application.add_handler(spendings_conv)
+
     application.add_handler(CommandHandler('accounts', list_accounts))
     application.add_handler(CommandHandler('invite', invite_user))
     application.add_handler(CommandHandler('join', join_account))

@@ -40,8 +40,19 @@ class Settings:
             'WELCOME': '👋',
             'DONE': '✅',
             'ACCOUNT': '🏦',
+            'SETTINGS': '⚙️',
+            'UPDATE': '✏️',
+            'DELETE': '🗑️',
+            'INVITE': '📨',
         }
         return emoji_map.get(name.upper(), '')
+
+# =============================================================================
+# ACCOUNT TYPES
+# =============================================================================
+    # TODO: v2.0.0 ADD more account types like 'savings', 'credit', 'earning'
+    ACCOUNT_TYPES= ['spending']
+
 
 # =============================================================================
 # TEXT CONSTANTS
@@ -61,3 +72,4 @@ class Settings:
             f"👋 Welcome back {username}!\n\n"
                 "Use /help to see available commands."
     )
+

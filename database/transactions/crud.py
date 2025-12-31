@@ -3,8 +3,9 @@ from database.models import Transaction
 from sqlalchemy.orm import Session
 import logging
 from datetime import datetime, timedelta,time
+from utils.config import Settings
 
-logger = logging.getLogger(__name__)
+logger = Settings.LOGGER
 
 
 def create_transaction(session: Session, user_id: int, amount: int, category: str, shop: str = None) -> Transaction:
