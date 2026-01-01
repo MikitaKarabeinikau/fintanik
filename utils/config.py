@@ -44,6 +44,10 @@ class Settings:
             'UPDATE': '✏️',
             'DELETE': '🗑️',
             'INVITE': '📨',
+            'HELP': '❓',
+            'SKIP': '⏭️',
+            'CAFFEINE': '☕',
+            'OTHER': '🛒'
         }
         return emoji_map.get(name.upper(), '')
 

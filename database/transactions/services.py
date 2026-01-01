@@ -3,8 +3,31 @@ from database.models import Transaction
 from sqlalchemy.orm import Session
 import logging
 from datetime import datetime, timedelta,time
+from database.models import Transaction,Account
 
 logger = logging.getLogger(__name__)
+
+def get_all_categories_from_account(account_name, session: Session):
+    """Retrieve all unique categories from transactions for a specific account"""
+    try:
+        categories = session.query(Transaction.category).join(Account, Transaction.account_id == Account.id).filter(
+            Account.name == account_name
+        ).distinct().all()
+        return [category[0] for category in categories]
+    except Exception as e:
+        logger.error(f"Error retrieving categories for account '{account_name}': {e}")
+        raise
+
+def get_user_shops_from_account(account_name, session: Session):
+    """Retrieve all unique shops from transactions for a specific account"""
+    try:
+        shops = session.query(Transaction.shop).join(Account, Transaction.account_id == Account.id).filter(
+            Account.name == account_name
+        ).distinct().all()
+        return [shop[0] for shop in shops if shop[0] is not None]
+    except Exception as e:
+        logger.error(f"Error retrieving shops for account '{account_name}': {e}")
+        raise
 
 def get_all_categories(session: Session):
     """Retrieve all unique categories from transactions"""

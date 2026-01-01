@@ -1,6 +1,7 @@
 from email.mime import application
 import os
 from commands.account_managment import WAITING_ACCOUNT_NAME, create_account, handle_invite_callback, handle_leave_callback, invite_user, join_account, leave_account, leave_account, list_accounts, receive_account_name
+from commands.transaction import WAITING_FOR_CATEGORY, WAITING_FOR_DATE, WAITING_FOR_NAME, WAITING_FOR_SHOP_NAME, ask_for, receive_amount, receive_category, receive_date, receive_name, receive_shop_name, start_transaction, transaction_flow
 from commands.cancel import cancel_command
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton, BotCommand
 from telegram.ext import (
@@ -15,6 +16,7 @@ from telegram.ext import (
 from dotenv import load_dotenv
 from database import db
 from database.models import User, Transaction
+from menus.account_menu import WAITING_FOR_AMOUNT, handle_account_menu
 from menus.main_menu import handle_main_menu_button
 from utils.decorators import is_authenticated
 from commands.start import start_command
@@ -95,6 +97,30 @@ def main():
     fallbacks=[CommandHandler('cancel', cancel_command)],
     )
 
+    transaction_conv = ConversationHandler(
+    entry_points=[
+        MessageHandler(filters.Regex(f'^{emoji("NEW")} Add Transaction$'), lambda u, c: start_transaction(u, c))
+    ],
+    states={
+        WAITING_FOR_AMOUNT: [
+            MessageHandler(filters.TEXT & ~filters.COMMAND, receive_amount)
+        ],
+        WAITING_FOR_NAME: [
+            MessageHandler(filters.TEXT & ~filters.COMMAND, receive_name)
+        ],
+        WAITING_FOR_CATEGORY: [
+            MessageHandler(filters.TEXT & ~filters.COMMAND, receive_category)
+        ],
+        WAITING_FOR_SHOP_NAME: [
+            MessageHandler(filters.TEXT & ~filters.COMMAND, receive_shop_name)
+        ],
+        WAITING_FOR_DATE: [
+            MessageHandler(filters.TEXT & ~filters.COMMAND, receive_date)
+        ],
+    },
+    fallbacks=[CommandHandler('cancel', cancel_command)],
+)
+
    
     # Add handlers
     application.add_handler(conv_handler)
@@ -113,7 +139,7 @@ def main():
 
     application.add_handler(account_conv)
     application.add_handler(spendings_conv)
-
+    application.add_handler(transaction_conv)
     application.add_handler(CommandHandler('accounts', list_accounts))
     application.add_handler(CommandHandler('invite', invite_user))
     application.add_handler(CommandHandler('join', join_account))

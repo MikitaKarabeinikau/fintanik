@@ -62,3 +62,16 @@ def get_user_spending_accounts(user_telegram_id: int):
         return []
     finally:
         session.close()
+
+def get_account_id_by_name(account_name: str, session: Session):
+    """Retrieve account ID by its name"""
+    try:
+        account = session.query(Account).filter_by(name=account_name).first()
+        if account:
+            return account.id
+        else:
+            logger.error(f"Account with name '{account_name}' not found.")
+            return None
+    except SQLAlchemyError as e:
+        logger.error(f"Error retrieving account ID by name: {e}")
+        return None

@@ -55,6 +55,7 @@ class Transaction(Base):
     id = Column(Integer, primary_key=True)
     account_id = Column(Integer, ForeignKey('accounts.id'), nullable=False)
     user_id = Column(Integer, ForeignKey('users.telegram_id'), nullable=False)  # Who added it
+    name = Column(String(255), nullable=True)
     shop = Column(String(255), nullable=True)
     amount = Column(Integer, nullable=False)  # Store in cents
     category = Column(String(255), nullable=False)

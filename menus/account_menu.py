@@ -6,6 +6,9 @@ from utils.config import Settings
 
 emoji = Settings.emoji
 
+WAITING_FOR_AMOUNT =  1 
+
+
 def get_account_menu(account_name: str):
     """Create account menu keyboard with buttons"""
     keyboard = [
@@ -22,12 +25,13 @@ def get_account_menu(account_name: str):
 async def handle_account_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, account_name: str):
     """Handle account menu button clicks"""
     text = update.message.text
+    from commands.transaction import transaction_actions, transaction_flow
 
     if text == f"{emoji('NEW')} Add Transaction":
-        await update.message.reply_text(
-            f"You chose to add a transaction to '{account_name}'. (Functionality to be implemented)",
-            reply_markup=get_account_menu(account_name)
-        )
+        transaction = transaction_actions['transaction']
+        flow = transaction_flow(update, context, action_key='amount',transaction=transaction)
+        context.user_data['transaction'] = transaction
+        return await flow
     
     elif text == f"{emoji('UPDATE')} Update Transaction":
         await update.message.reply_text(

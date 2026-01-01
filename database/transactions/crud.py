@@ -2,20 +2,23 @@ from database.db import db
 from database.models import Transaction
 from sqlalchemy.orm import Session
 import logging
-from datetime import datetime, timedelta,time
+from datetime import date, datetime, timedelta,time
 from utils.config import Settings
 
 logger = Settings.LOGGER
 
 
-def create_transaction(session: Session, user_id: int, amount: int, category: str, shop: str = None) -> Transaction:
+def create_transaction(session: Session, user_id: int, account_id: int, amount: int, category: str, shop: str = None,name:str = None,date: datetime = datetime.utcnow()) -> Transaction:
     """Create a new transaction record"""
     try:
         new_transaction = Transaction(
+            account_id = account_id,
             user_id=user_id,
             amount=amount,
+            name = name,
             category=category,
-            shop=shop
+            shop=shop,
+            date=date
         )
         session.add(new_transaction)
         session.commit()

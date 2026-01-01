@@ -12,6 +12,7 @@ def get_main_menu():
     keyboard = [
         [KeyboardButton('SPENDINGS')],
         [KeyboardButton(f'{emoji("SETTINGS")} SETTINGS')],
+        [KeyboardButton(f'{emoji("HELP")} HELP')],
         [KeyboardButton(f"{emoji('LOGOUT')} Logout")],
         
     ]
@@ -35,11 +36,11 @@ async def handle_main_menu_button(update: Update, context: ContextTypes.DEFAULT_
         from menus.spendings_menu import handle_spendings_menu
         return await handle_spendings_menu(update, context)
     
-    elif text == "⚙️ Settings":
+    elif text == f"{emoji('SETTINGS')} SETTINGS":
         from commands.settings import settings_command
         return await settings_command(update, context)
     
-    elif text == f'HELP':
+    elif text == f'{emoji('HELP')} HELP':
         from commands.help import help_command
         return await help_command(update, context)
 

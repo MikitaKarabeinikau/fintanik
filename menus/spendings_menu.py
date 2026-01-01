@@ -63,8 +63,7 @@ async def handle_spendings_menu(update: Update, context: ContextTypes.DEFAULT_TY
         
     elif text == f"{emoji('NEW')} Add New Account":
         await update.message.reply_text(
-            "Please enter the name of the new spending account:",
-            reply_markup=get_spendings_menu(update,context)
+            "Please enter the name of the new spending account:"
         )
         return WAITING_FOR_NEW_ACCOUNT_NAME
     
