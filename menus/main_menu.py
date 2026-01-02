@@ -1,5 +1,6 @@
 from telegram import ReplyKeyboardMarkup, KeyboardButton, Update
 from telegram.ext import ContextTypes
+from menus.account_view.delete_transaction_menu import handle_transaction_to_delete
 from utils.decorators import is_authenticated
 from utils.config import Settings
 
@@ -38,7 +39,15 @@ async def handle_main_menu_button(update: Update, context: ContextTypes.DEFAULT_
     if context.user_data.get('viewing_stats'):
         from menus.account_view import view_menu
         return await view_menu.handle_date_selection(update, context)
-    
+    if context.user_data.get('viewing_groups'):
+        from menus.account_view import groups_menu
+        return await groups_menu.handle_groups_menu(context, update)
+    if context.user_data.get('deleting_transaction'):
+        from menus.account_view.delete_transaction_menu import handle_delete_transaction_menu
+        return await handle_delete_transaction_menu(update, context)
+    if context.user_data.get('delete_list_menu'):
+        from menus.account_view.delete_transaction_menu import handle_delete_transaction_menu
+        return await handle_transaction_to_delete(update, context)
     if context.user_data.get('current_account'):
         from menus.account_menu import handle_account_menu
         return await handle_account_menu(update, context, context.user_data['current_account'])

@@ -1,5 +1,6 @@
 from database.models import User
 from telegram import Update
+from database.user.crud import get_user_by_telegram_id
 from utils.config import Settings
 from telegram.ext import ContextTypes, ConversationHandler
 from database import db

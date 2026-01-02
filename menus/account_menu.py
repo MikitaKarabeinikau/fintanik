@@ -35,19 +35,21 @@ async def handle_account_menu(update: Update, context: ContextTypes.DEFAULT_TYPE
     elif text == f"{emoji('UPDATE')} Update Transaction":
         await update.message.reply_text(
             f"You chose to update a transaction in '{account_name}'. (Functionality to be implemented)",
-            reply_markup=get_account_menu(account_name)
+            reply_markup=get_account_menu()
         )
     
     elif text == f"{emoji('DELETE')} Delete Transaction":
+        context.user_data['deleting_transaction'] = True
+        from menus.account_view.delete_transaction_menu import get_delete_menu
         await update.message.reply_text(
             f"You chose to delete a transaction from '{account_name}'. (Functionality to be implemented)",
-            reply_markup=get_account_menu(account_name)
+            reply_markup=get_delete_menu()
         )
     
     elif text == f'{emoji("INVITE")} Invite User':
         await update.message.reply_text(
             f"You chose to invite a user to '{account_name}'. (Functionality to be implemented)",
-            reply_markup=get_account_menu(account_name)
+            reply_markup=get_account_menu()
         )
     
     elif text == f"{emoji('STATS')} View Statistics":
