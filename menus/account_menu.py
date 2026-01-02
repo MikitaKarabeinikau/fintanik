@@ -1,9 +1,9 @@
 from telegram import ReplyKeyboardMarkup, KeyboardButton, Update
 from telegram.ext import ContextTypes, ConversationHandler
 from database import db
+from menus.account_view.view_menu import get_dates_menu
 from utils.decorators import is_authenticated
 from utils.config import Settings
-
 emoji = Settings.emoji
 
 WAITING_FOR_AMOUNT =  1 
@@ -21,7 +21,6 @@ def get_account_menu(account_name: str):
     ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
-@is_authenticated
 async def handle_account_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, account_name: str):
     """Handle account menu button clicks"""
     text = update.message.text
@@ -52,10 +51,14 @@ async def handle_account_menu(update: Update, context: ContextTypes.DEFAULT_TYPE
         )
     
     elif text == f"{emoji('STATS')} View Statistics":
+        from menus.account_menu import view_menu
+        account_name = context.user_data.get('current_account')
+        context.user_data['viewing_stats'] = True
         await update.message.reply_text(
-            f"You chose to view statistics for '{account_name}'. (Functionality to be implemented)",
-            reply_markup=get_account_menu(account_name)
+            f"{emoji('STATS')} View Statistics selected for account '{account_name}'."
         )
+        return await get_dates_menu()
+        
     
     elif text == f"{emoji('BACK')} BACK":
         context.user_data.pop('current_account', None)

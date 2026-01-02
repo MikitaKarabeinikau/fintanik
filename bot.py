@@ -1,5 +1,6 @@
 from email.mime import application
 import os
+from commands.account.view import  start_view
 from commands.account_managment import WAITING_ACCOUNT_NAME, create_account, handle_invite_callback, handle_leave_callback, invite_user, join_account, leave_account, leave_account, list_accounts, receive_account_name
 from commands.transaction import WAITING_FOR_CATEGORY, WAITING_FOR_DATE, WAITING_FOR_NAME, WAITING_FOR_SHOP_NAME, ask_for, receive_amount, receive_category, receive_date, receive_name, receive_shop_name, start_transaction, transaction_flow
 from commands.cancel import cancel_command
@@ -17,6 +18,8 @@ from dotenv import load_dotenv
 from database import db
 from database.models import User, Transaction
 from menus.account_menu import WAITING_FOR_AMOUNT, handle_account_menu
+from menus.account_view.view_menu import ACCOUNT_VIEW_LAST_MONTH, ACCOUNT_VIEW_LAST_MONTH, ACCOUNT_VIEW_LAST_YEAR, ACCOUNT_VIEW_LAST_YEAR, ACCOUNT_VIEW_THIS_MONTH, ACCOUNT_VIEW_THIS_WEEK, ACCOUNT_VIEW_THIS_WEEK, ACCOUNT_VIEW_THIS_YEAR, ACCOUNT_VIEW_TODAY
+from utils.utils import parse_date_range
 from menus.main_menu import handle_main_menu_button
 from utils.decorators import is_authenticated
 from commands.start import start_command
@@ -48,10 +51,7 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def post_init(application: Application):
     """Set bot commands for the menu"""
     commands = [
-        BotCommand("start", "Start the bot"),
-        BotCommand("help", "Show help message"),
-        BotCommand("stats", "View your statistics"),
-        BotCommand("logout", "Log out from the bot"),
+        BotCommand("start", "Start the bot")
     ]
     await application.bot.set_my_commands(commands)
 
@@ -120,12 +120,7 @@ def main():
     },
     fallbacks=[CommandHandler('cancel', cancel_command)],
 )
-
-   
-    # Add handlers
-    application.add_handler(conv_handler)
-    application.add_handler(CommandHandler('help', help_command))
-    application.add_handler(CommandHandler('logout', logout_command))
+    
 
     account_conv = ConversationHandler(
         entry_points=[CommandHandler('createaccount', create_account)],
@@ -136,6 +131,11 @@ def main():
         },
         fallbacks=[CommandHandler('cancel', cancel_command)],
     )
+
+    # Add handlers
+    application.add_handler(conv_handler)
+    application.add_handler(CommandHandler('help', help_command))
+    application.add_handler(CommandHandler('logout', logout_command))
 
     application.add_handler(account_conv)
     application.add_handler(spendings_conv)

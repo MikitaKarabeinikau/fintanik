@@ -25,12 +25,29 @@ async def handle_main_menu_button(update: Update, context: ContextTypes.DEFAULT_
     """Handle main menu button clicks"""
     text = update.message.text
 
+    if text == f"{emoji('STATS')} View Statistics":
+        from menus.account_view import view_menu  
+        context.user_data['viewing_stats'] = True  # Set flag
+        await update.message.reply_text(
+            "📊 Select time period:",
+            reply_markup=view_menu.get_dates_menu()
+        )
+        return  # Don't call handle_date_selection yet!
 
-    # Check if text starts with MONEY emoji or if we're in spendings/account context
-    if text.startswith(f"{emoji('MONEY')}") or text == f"{emoji('NEW')} Add New Account" or text == f"{emoji('BACK')} BACK":
+    # Add this check BEFORE the current_account check
+    if context.user_data.get('viewing_stats'):
+        from menus.account_view import view_menu
+        return await view_menu.handle_date_selection(update, context)
+    
+    if context.user_data.get('current_account'):
+        from menus.account_menu import handle_account_menu
+        return await handle_account_menu(update, context, context.user_data['current_account'])
+
+    if text.startswith(f"{emoji('MONEY')}") :
         from menus.spendings_menu import handle_spendings_menu
         return await handle_spendings_menu(update, context)
-
+    
+    
 
     elif text == 'SPENDINGS':
         from menus.spendings_menu import handle_spendings_menu

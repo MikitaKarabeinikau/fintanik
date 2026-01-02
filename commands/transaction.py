@@ -111,7 +111,7 @@ async def transaction_flow(update: Update, context: ContextTypes.DEFAULT_TYPE, a
                            transaction.get('date'))
         
         await update.message.reply_text(
-            f"✅ Transaction added to '{account}'!\n TRANSACTION INFO:\nPRODUCT NAME: {transaction.get('name')}\nAMOUNT: {transaction['amount']}\nCATEGORY: {transaction['category']}\nSHOP: {transaction.get('shop')}\nDATE: {transaction.get('date') if transaction.get('date') else datetime.now().strftime('%Y-%m-%d')}",
+            f"✅ Transaction added to '{account}'!\n TRANSACTION INFO:\nPRODUCT NAME: {transaction.get('name')}\nAMOUNT: {transaction['amount']} zl.\nCATEGORY: {transaction['category']}\nSHOP: {transaction.get('shop')}\n",
             reply_markup=get_spendings_menu(update, context)
         )
         context.user_data.pop('transaction', None)
@@ -181,7 +181,7 @@ async def receive_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data['transaction']['date'] = None  # Will be set to current date in DB
     else:
         try:
-            date_obj = datetime.strptime(text, "%Y-%m-%d")
+            date_obj = datetime.datetime.strptime(text, "%Y-%m-%d")
             context.user_data['transaction']['date'] = date_obj
             return await transaction_flow(update, context, action_key=None, transaction=context.user_data['transaction'])
         except ValueError:

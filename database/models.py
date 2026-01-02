@@ -1,4 +1,5 @@
-from sqlalchemy import Column, ForeignKey, Integer, String, DateTime, Boolean, Text, Table
+from decimal import Decimal
+from sqlalchemy import Column, Float, ForeignKey, Integer, String, DateTime, Boolean, Text, Table
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declarative_base
 from datetime import datetime
@@ -57,7 +58,7 @@ class Transaction(Base):
     user_id = Column(Integer, ForeignKey('users.telegram_id'), nullable=False)  # Who added it
     name = Column(String(255), nullable=True)
     shop = Column(String(255), nullable=True)
-    amount = Column(Integer, nullable=False)  # Store in cents
+    amount = Column(Float, nullable=False)  # Store in cents
     category = Column(String(255), nullable=False)
     date = Column(DateTime, default=datetime.utcnow)
     

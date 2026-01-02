@@ -1,8 +1,9 @@
+from sqlalchemy import select
 from database.db import db
 from database.models import Transaction
 from sqlalchemy.orm import Session
 import logging
-from datetime import datetime, timedelta,time
+from datetime import date, datetime, timedelta,time
 from database.models import Transaction,Account
 
 logger = logging.getLogger(__name__)
@@ -38,57 +39,22 @@ def get_all_categories(session: Session):
         logger.error(f"Error retrieving categories: {e}")
         raise
 
-# Get transactions for specific time frames
-def get_this_day_transactions(session: Session):
+def get_spendings(account: str, start_date: datetime, end_date: datetime, session: Session):
+    """Retrieve spendings for a given account and date range"""
     try:
-        """Retrieve transactions for the current day for a specific user"""
-        now = datetime.now()
-        start_of_day = datetime.combine(now.date(), time.min)
+        start_of_day = start_date
+        end_of_day = end_date
         
-        return session.query(Transaction).filter(
-            Transaction.date >= start_of_day
-        ).all()
+        stmt = select(Transaction).join(Account, Transaction.account_id == Account.id).where(Transaction.date.between(start_of_day, end_of_day)).where(Account.name == account)
+        transactions = session.execute(stmt).scalars().all()
+        return transactions
     except Exception as e:
-        logger.error(f"Error retrieving today's transactions: {e}")
+        logger.error(f"Error retrieving spendings for account '{account}' between {start_date} and {end_date}: {e}")
         raise
-
-def get_this_week_transactions(session: Session):
-    try:
-        """Retrieve transactions for the current week for a specific user"""
-        now = datetime.now()
-        start_of_week = now - timedelta(days=now.weekday())
         
-        return session.query(Transaction).filter(
-            Transaction.date >= start_of_week
-        ).all()
-    except Exception as e:
-        logger.error(f"Error retrieving this week's transactions: {e}")
-        raise
-
-def get_this_month_transactions(session: Session):
-    """Retrieve transactions for the current month for a specific user"""
-    try:
-        now = datetime.now()
-        start_of_month = datetime(now.year, now.month, 1)
         
-        return session.query(Transaction).filter(
-            Transaction.date >= start_of_month
-        ).all()
     except Exception as e:
-        logger.error(f"Error retrieving this month's transactions: {e}")
-        raise
-
-def get_this_year_transactions(session: Session):
-    """Retrieve transactions for the current year for a specific user"""
-    try:
-        now = datetime.now()
-        start_of_year = datetime(now.year, 1, 1)
-        
-        return session.query(Transaction).filter(
-            Transaction.date >= start_of_year
-        ).all()
-    except Exception as e:
-        logger.error(f"Error retrieving this year's transactions: {e}")
+        logger.error(f"Error retrieving spendings for account '{account}' on {date}: {e}")
         raise
 
 # Get transactions by category

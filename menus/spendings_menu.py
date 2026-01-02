@@ -46,10 +46,7 @@ def get_spendings_menu(update: Update,context: ContextTypes.DEFAULT_TYPE):
 async def handle_spendings_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle spendings menu button clicks"""
     text = update.message.text
-    
-    # If user is in account context, route to account menu
-    if context.user_data.get('current_account'):
-        return await handle_account_menu(update, context, context.user_data['current_account'])
+  
     
     if text.startswith(f"{emoji('MONEY')}"):
         account_name = text.replace(f"{emoji('MONEY')} ", "")
