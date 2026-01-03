@@ -38,7 +38,6 @@ async def handle_delete_transaction_menu(update, context):
 
     # Handle BACK button
     if text == f"{emoji('BACK')} BACK":
-        context.user_data.pop('viewing_stats', None)
         context.user_data.pop('deleting_transaction', None)
         account_name = context.user_data.get('current_account')
         await update.message.reply_text(

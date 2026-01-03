@@ -2,20 +2,34 @@
 import datetime
 from telegram import ReplyKeyboardMarkup, Update, KeyboardButton
 from telegram.ext import ContextTypes, ConversationHandler
+from bot import transaction
 from database import db
 from database.accounts.crud import get_account_id_by_name
-from database.transactions.crud import create_transaction
-from database.transactions.services import get_all_categories, get_all_categories_from_account, get_user_shops_from_account
+from database.transactions.crud import create_transaction, update_transaction
+from database.transactions.services import get_all_categories, get_all_categories_from_account, get_spendings, get_user_shops_from_account
+from menus.account_menu import get_account_menu
+from menus.account_view.delete_transaction_menu import get_delete_list_menu
+from menus.account_view.view_menu import get_dates_menu
 from menus.spendings_menu import WAITING_FOR_NEW_ACCOUNT_NAME, get_spendings_menu
 from utils.decorators import is_authenticated
+from menus.account_view.view_menu import dates_keyboard
 
 from utils.config import Settings
+from utils.utils import parse_date_range
 WAITING_FOR_AMOUNT = 1 
 WAITING_FOR_NAME = 2
 WAITING_FOR_CATEGORY = 3
 WAITING_FOR_SHOP_NAME = 4
 WAITING_FOR_DATE = 5
 
+WAITING_FOR_AMOUNT_UPDATE = 6
+WAITING_FOR_NAME_UPDATE = 7
+WAITING_FOR_CATEGORY_UPDATE = 8
+WAITING_FOR_SHOP_NAME_UPDATE = 9
+WAITING_FOR_DATE_UPDATE = 10
+
+def get_update_dates_menu():
+    return ReplyKeyboardMarkup(dates_keyboard, resize_keyboard=True)
 
 emoji = Settings.emoji
 
@@ -178,7 +192,8 @@ async def receive_shop_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def receive_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
     if text.upper() == "TODAY":
-        context.user_data['transaction']['date'] = None  # Will be set to current date in DB
+        today = datetime.datetime.now()
+        context.user_data['transaction']['date'] = today
     else:
         try:
             date_obj = datetime.datetime.strptime(text, "%Y-%m-%d")
@@ -217,3 +232,240 @@ async def ask_for(update: Update, context: ContextTypes.DEFAULT_TYPE, transactio
         reply_markup=reply_markup
     )
     return transaction_actions[action_key]['stage']
+
+
+# =================================================================================================
+# UPDATE TRANSACTION FLOW
+# =================================================================================================
+
+# --------------------MENU KEYBOARDS--------------------
+def get_updating_field_menu():
+    updating_field_keyboard = [
+        [KeyboardButton("AMOUNT")],
+        [KeyboardButton("NAME")],
+        [KeyboardButton("CATEGORY")],
+        [KeyboardButton("SHOP")],
+        [KeyboardButton("DATE")],
+        [KeyboardButton("UPDATE TRANSACTION")],
+        [KeyboardButton(f"{emoji('BACK')} BACK")]
+    ]
+    return ReplyKeyboardMarkup(updating_field_keyboard, resize_keyboard=True)
+
+def get_update_list_menu(update: Update,context: ContextTypes.DEFAULT_TYPE):
+    update_list_keyboard = []
+    start, end = parse_date_range(update = update, context = context,text = context.user_data.get('selected_date_range'))
+    transaction_list = get_spendings(account=context.user_data.get('current_account'), start_date=start, end_date=end,session=db.get_session())
+    for row in transaction_list:
+        button_text = f"{row.id} {row.name} {row.amount} {row.shop} {row.category} {row.date}"
+        update_list_keyboard.append([KeyboardButton(button_text)])
+    update_list_keyboard.append([KeyboardButton(f"{emoji('BACK')} BACK")])
+    return ReplyKeyboardMarkup(update_list_keyboard, resize_keyboard=True)
+
+
+
+
+async def handle_transaction_range(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle updating a transaction"""
+    text = update.message.text
+    
+    if not text:
+        await update.message.reply_text(
+            "❌ Invalid date selection. Please choose a valid option from the menu.",
+            reply_markup=get_update_dates_menu()
+        )
+        return
+
+    # Handle BACK button
+    if text == f"{emoji('BACK')} BACK":
+        context.user_data.pop('date_range_updating', None)
+        account_name = context.user_data.get('current_account')
+        await update.message.reply_text(
+            "Back to account menu",
+            reply_markup=get_account_menu(account_name)
+        )
+        return
+    elif text in ["TODAY", "THIS WEEK", "LAST 7 DAYS", "THIS MONTH", "LAST MONTH", "THIS YEAR", "LAST YEAR"]:
+        context.user_data['selected_date_range'] = text
+
+        context.user_data['update_transaction'] = True
+        context.user_data['date_range_updating'] = False
+
+        await update.message.reply_text(
+            f"How would you like to view your statistics?",
+        reply_markup=get_update_list_menu(update=update, context=context))
+
+async def handle_transaction_to_update(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text
+
+    if text == f"{emoji('BACK')} BACK":
+        context.user_data.pop('update_transaction', None)
+        account_name = context.user_data.get('current_account')
+        await update.message.reply_text(
+            "Back to account menu",
+            reply_markup=get_account_menu(account_name)
+        )
+        return
+
+    try:
+        data = text.split()
+        transaction_id = int(data[0])
+        name = data[1]
+        amount = float(data[2])
+        shop = data[3]
+        category = data[4]
+        transaction_to_update = {
+            'id': transaction_id,
+            'amount': amount,
+            'name': name,
+            'shop': shop,
+            'category': category
+        }
+        context.user_data['transaction'] = transaction_to_update  
+
+        context.user_data['selecting_update_field'] = True  
+        context.user_data.pop('update_transaction', None)
+        await update.message.reply_text(
+            "Select the field you want to update:",
+            reply_markup=get_updating_field_menu()
+        )
+    except (ValueError, IndexError):
+        await update.message.reply_text(
+            "❌ Invalid selection. Please choose a valid transaction from the list.",
+            reply_markup=get_updating_field_menu()
+        )
+
+async def handle_updating_field(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text
+
+    if text == f"{emoji('BACK')} BACK":
+        context.user_data.pop('selecting_update_field', None)
+        account_name = context.user_data.get('current_account')
+        await update.message.reply_text(
+            "Back to account menu",
+            reply_markup=get_account_menu(account_name)
+        )
+        return
+    elif text in ["AMOUNT", "NAME", "CATEGORY", "SHOP", "DATE"]:
+        context.user_data['updating_field'] = text
+        return await ask_for_update_field(update, context)
+    elif text == "UPDATE TRANSACTION":
+        print("DEBUG: UPDATE TRANSACTION button clicked!")  # Add this
+        transaction = context.user_data.get('transaction')
+        print(f"DEBUG: transaction = {transaction}")  # Add this
+        if transaction is None:
+            await update.message.reply_text(
+                "❌ No transaction selected for updating.",
+                reply_markup=get_account_menu(context.user_data.get('current_account'))
+            )
+            return ConversationHandler.END
+        transaction_id = transaction.get('id')
+        print(f"DEBUG: transaction_id = {transaction_id}")  # Add this
+        update_transaction(db.get_session(), transaction_id, transaction)  # Remove await
+        print("DEBUG: Transaction updated in DB")  # Add this
+        await update.message.reply_text(
+            f"✅ Transaction updated!\n UPDATED TRANSACTION INFO:\nPRODUCT NAME: {transaction.get('name')}\nAMOUNT: {transaction['amount']} zl.\nCATEGORY: {transaction['category']}\nSHOP: {transaction.get('shop')}\n",
+            reply_markup=get_spendings_menu(update, context)
+        )
+        context.user_data.pop('transaction', None)
+        context.user_data.pop('current_account', None)
+        context.user_data.pop('selecting_update_field', None)
+        return ConversationHandler.END
+    else:
+        return await handle_transaction_range_field(update, context)
+
+
+async def handle_transaction_range_field(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data['updating_field'] = update.message.text
+    return await ask_for_update_field(update, context)
+
+async def update_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data['transaction']['amount'] = float(update.message.text)
+    context.user_data['selecting_update_field'] = True  # Add this
+    await update.message.reply_text(
+        f"✅ Amount updated to: {update.message.text}\n\nSelect the next field to update or 'UPDATE TRANSACTION' to save changes.\n {await updating_info(context)}",
+        reply_markup=get_updating_field_menu()
+    )
+    return ConversationHandler.END  #
+
+async def update_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data['transaction']['name'] = update.message.text
+    await update.message.reply_text(
+        f"✅ Name updated to: {update.message.text}\n\nSelect the next field to update or 'UPDATE TRANSACTION' to save changes.\n {await updating_info(context)}",
+        reply_markup=get_updating_field_menu()
+    )
+    return ConversationHandler.END  # Exit conversation state
+
+async def update_category(update: Update, context: ContextTypes.DEFAULT_TYPE):    
+    context.user_data['transaction']['category'] = update.message.text
+    context.user_data['selecting_update_field'] = True  # Set routing flag
+    await update.message.reply_text(
+        f"✅ Category updated to: {update.message.text}\n\nSelect the next field to update or 'UPDATE TRANSACTION' to save changes.\n {await updating_info(context)}",
+        reply_markup=get_updating_field_menu()
+    )
+    return ConversationHandler.END  # Exit conversation state
+
+async def update_shop_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data['transaction']['shop'] = update.message.text
+    context.user_data['selecting_update_field'] = True  # Set routing flag
+    await update.message.reply_text(
+        f"✅ Shop updated to: {update.message.text}\n\nSelect the next field to update or 'UPDATE TRANSACTION' to save changes.\n {await updating_info(context)}",
+        reply_markup=get_updating_field_menu()
+    )
+    return ConversationHandler.END  # Exit conversation state
+
+async def update_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text.strip()
+    if text.upper() == "TODAY":
+        today = datetime.datetime.now()
+        context.user_data['transaction']['date'] = today
+    else:
+        try:
+            date_obj = datetime.datetime.strptime(text, "%Y-%m-%d")
+            context.user_data['transaction']['date'] = date_obj
+        except ValueError:
+            await update.message.reply_text("❌ Invalid date format. Please enter the date in YYYY-MM-DD format or type TODAY:")
+            return WAITING_FOR_DATE_UPDATE
+    context.user_data['selecting_update_field'] = True  # Set routing flag
+    await update.message.reply_text(
+        f"✅ Date updated to: {text}\n\nSelect the next field to update or 'UPDATE TRANSACTION' to save changes.\n {await updating_info(context)}",
+        reply_markup=get_updating_field_menu()
+    )
+    return ConversationHandler.END  # Exit conversation state
+
+async def update_transaction_in_db(transaction_id: int, updated_data: dict):
+    pass  # Implement the logic to update the transaction in the database
+
+async def ask_for_update_field(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(f"📝 Current Transaction Info:\n{await updating_info(context)}")
+    if context.user_data['updating_field'] == "AMOUNT":
+        
+        await update.message.reply_text(f"Please enter the new amount:")
+        return WAITING_FOR_AMOUNT_UPDATE
+    elif context.user_data['updating_field'] == "NAME":
+        await update.message.reply_text("Please enter the new name:")
+        return WAITING_FOR_NAME_UPDATE
+    elif context.user_data['updating_field'] == "CATEGORY":
+
+        await update.message.reply_text(
+            "Please enter the new category:",
+            reply_markup=get_categories_keyboard(context)
+        )
+        return WAITING_FOR_CATEGORY_UPDATE
+    elif context.user_data['updating_field'] == "SHOP":
+        await update.message.reply_text(
+            "Please enter the new shop name:",
+            reply_markup=get_shop_keyboard(context)
+        )
+        return WAITING_FOR_SHOP_NAME_UPDATE
+    elif context.user_data['updating_field'] == "DATE":
+        await update.message.reply_text("Please enter the new date (YYYY-MM-DD) or type TODAY:",
+                                        reply_markup=ReplyKeyboardMarkup(
+                                            [[KeyboardButton("TODAY")]]))
+        
+        return WAITING_FOR_DATE_UPDATE
+    
+async def updating_info(context: ContextTypes.DEFAULT_TYPE):
+    return f'Amount: {context.user_data["transaction"].get("amount")}\n' \
+           f'Name: {context.user_data["transaction"].get("name")}\n' \
+           f'Category: {context.user_data["transaction"].get("category")}\n' \
+           f'Shop: {context.user_data["transaction"].get("shop")}\n'

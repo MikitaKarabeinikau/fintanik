@@ -37,16 +37,19 @@ def get_transactions(session: Session):
         logger.error(f"Error retrieving transactions: {e}")
         raise
 
-def update_transaction(session: Session, transaction_id: int, **kwargs) -> Transaction:
+def update_transaction(session: Session, transaction_id: int, new_transaction) -> Transaction:
     """Update a transaction by its ID"""
     try:
         transaction = session.query(Transaction).filter(Transaction.id == transaction_id).first()
         if not transaction:
-            return None
+            raise ValueError(f"Transaction with ID {transaction_id} not found.")
         
-        for key, value in kwargs.items():
-            if hasattr(transaction, key):
-                setattr(transaction, key, value)
+        # Update fields
+        transaction.amount = new_transaction.get('amount', transaction.amount)
+        transaction.name = new_transaction.get('name', transaction.name)
+        transaction.category = new_transaction.get('category', transaction.category)
+        transaction.shop = new_transaction.get('shop', transaction.shop)
+        transaction.date = new_transaction.get('date', transaction.date)
         
         session.commit()
         session.refresh(transaction)

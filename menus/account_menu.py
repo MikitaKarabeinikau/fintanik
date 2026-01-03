@@ -33,16 +33,17 @@ async def handle_account_menu(update: Update, context: ContextTypes.DEFAULT_TYPE
         return await flow
     
     elif text == f"{emoji('UPDATE')} Update Transaction":
+        context.user_data['date_range_updating'] = True 
         await update.message.reply_text(
-            f"You chose to update a transaction in '{account_name}'. (Functionality to be implemented)",
-            reply_markup=get_account_menu()
+            f"You chose to update a transaction from '{account_name}'. Select a date range to view transactions:",
+            reply_markup=get_dates_menu()
         )
     
     elif text == f"{emoji('DELETE')} Delete Transaction":
         context.user_data['deleting_transaction'] = True
         from menus.account_view.delete_transaction_menu import get_delete_menu
         await update.message.reply_text(
-            f"You chose to delete a transaction from '{account_name}'. (Functionality to be implemented)",
+            f"You chose to delete a transaction from '{account_name}'. Select a date range to view transactions:",
             reply_markup=get_delete_menu()
         )
     
