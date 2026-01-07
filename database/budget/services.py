@@ -33,3 +33,8 @@ def get_unset_budgets_categories():
     budgeted_categories = set(budgets.keys())
     unset_categories = default_categories - budgeted_categories
     return unset_categories
+
+def get_all_catiegories():
+    budget = set(get_all_budgets_for_current_month().keys())
+    default_categories = set(Settings.CATEGORIES)
+    return budget.union(default_categories)

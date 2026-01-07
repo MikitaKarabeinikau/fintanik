@@ -47,8 +47,8 @@ def update_category_budget(budget_id: int, new_amount: float) -> Budget:
     budget = session.query(Budget).filter(Budget.id == budget_id).first()
     if budget:
         budget.amount = new_amount
-        db.commit()
-        db.refresh(budget)
+        session.commit()
+        session.refresh(budget)
     return budget
 
 def get_all_budgets_for_current_month():
@@ -67,13 +67,78 @@ def get_all_budgets_for_current_month():
     budgets_dict = {category: amount for category, amount in budgets}
     return budgets_dict
 
+def get_all_budgets_for_next_month():
+    session = db.get_session()
+    now = datetime.now()
+    if now.month == 12:
+        period_start = datetime(now.year + 1, 1, 1)
+        period_end = datetime(now.year + 1, 2, 1)
+    else:
+        period_start = datetime(now.year, now.month + 1, 1)
+        if now.month + 1 == 12:
+            period_end = datetime(now.year + 1, 1, 1)
+        else:
+            period_end = datetime(now.year, now.month + 2, 1)
+    stmt = select(Budget.category, Budget.amount).where(
+        Budget.period_start == period_start,
+        Budget.period_end == period_end
+    )
+    budgets = session.execute(stmt).all()
+    budgets_dict = {category: amount for category, amount in budgets}
+    return budgets_dict
 
+def get_budget_id_by_category_for_current_month(category: str) -> Budget:
+    session = db.get_session()
+    now = datetime.now()
+    period_start = datetime(now.year, now.month, 1)
+    if now.month == 12:
+        period_end = datetime(now.year + 1, 1, 1)
+    else:
+        period_end = datetime(now.year, now.month + 1, 1)
+    
+    stmt = select(Budget).where(
+        Budget.category == category,
+        Budget.period_start == period_start,
+        Budget.period_end == period_end
+    )
+    budget = session.execute(stmt).scalar_one_or_none()
+    return budget.id
+
+def get_budget_id_by_category_for_next_month(category: str) -> Budget:
+    session = db.get_session()
+    now = datetime.now()
+    if now.month == 12:
+        period_start = datetime(now.year + 1, 1, 1)
+        period_end = datetime(now.year + 1, 2, 1)
+    else:
+        period_start = datetime(now.year, now.month + 1, 1)
+        if now.month + 1 == 12:
+            period_end = datetime(now.year + 1, 1, 1)
+        else:
+            period_end = datetime(now.year, now.month + 2, 1)
+    
+    stmt = select(Budget).where(
+        Budget.category == category,
+        Budget.period_start == period_start,
+        Budget.period_end == period_end
+    )
+    budget = session.execute(stmt).scalar_one_or_none()
+    return budget.id
+
+def reset_budget(budget_id:int) -> Budget:
+    session = db.get_session()
+    budget = session.query(Budget).filter(Budget.id == budget_id).first()
+    if budget:
+        budget.amount = 0
+        session.commit()
+        session.refresh(budget)
+    return budget
 
 def delete_category_budget( budget_id: int) -> bool:
     session = db.get_session()
     budget = session.query(Budget).filter(Budget.id == budget_id).first()
     if budget:
-        db.delete(budget)
-        db.commit()
+        session.delete(budget)
+        session.commit()
         return True
     return False

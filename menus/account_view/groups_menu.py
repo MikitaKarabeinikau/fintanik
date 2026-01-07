@@ -46,25 +46,30 @@ async def handle_groups_menu(context: ContextTypes.DEFAULT_TYPE, update: Update)
         message = view_statistics_all(date, transactions)
 
         await update.message.reply_text(
-            message,
+            f"<pre>{message}</pre>",
+            parse_mode='HTML',
             reply_markup=get_groups_menu()
         )
-
         return
+
     elif text == "BY CATEGORY":
         transactions = get_groupe_transactions(update, context, date, group_by='category')
         message = view_statistics_grouped(date, transactions, group_by='category')
 
         await update.message.reply_text(
-            message,
+            f"<pre>{message}</pre>",
+            parse_mode='HTML',
             reply_markup=get_groups_menu()
         )
+        return
+        
     elif text == "BY SHOP":
         transactions = get_groupe_transactions(update, context, date, group_by='shop')
         message = view_statistics_grouped(date, transactions, group_by='shop')
 
         await update.message.reply_text(
-            message,
+            f"<pre>{message}</pre>",
+            parse_mode='HTML',
             reply_markup=get_groups_menu()
         )
         return

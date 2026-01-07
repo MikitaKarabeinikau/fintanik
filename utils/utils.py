@@ -53,69 +53,69 @@ def parse_date_range(context: ContextTypes.DEFAULT_TYPE, update: Update, text: s
     else:
         return None, None
     
+
 def view_statistics_all(period, transactions):
     """Format all transactions in a pretty aligned table"""
     if not transactions:
-        return f"📅 {period}\n\n✅ No transactions found for this period."
+        return f"📅 {period}\n\nNo transactions found."
     
     # Calculate total
     total = sum(t.amount for t in transactions)
     
+    # Find max lengths for dynamic sizing
+    max_category = max((len(t.category or "N/A") for t in transactions), default=8)
+    max_category = min(max_category, 15)  # Cap at 15
+    max_name = max((len(t.name or "Unnamed") for t in transactions), default=10)
+    max_name = min(max_name, 15)  # Cap at 15
+    
     # Header
-    message = f"📊 {'='*50}\n"
-    message += f"📅 {period}\n"
-    message += f"{'='*50}\n\n"
+    lines = [f"📅 {period}\n"]
+    lines.append(f"{'Date':<12} {'Amount':>8} {'Category':<{max_category}} {'Name':<{max_name}}")
+    lines.append("-" * (12 + 8 + max_category + max_name + 6))
     
-    # Table header with aligned columns
-    message += f"{'Date':<12} {'Amount':>8} {'Category':<12} {'Name':<15} {'Shop':<12}\n"
-    message += f"{'-'*50}\n"
-    
-    # Transactions - one line per transaction
+    # Transactions
     for t in transactions:
         date_str = t.date.strftime("%Y-%m-%d") if t.date else "N/A"
-        name = (t.name or 'Unnamed')[:14]  # Truncate if too long
-        category = (t.category or "N/A")[:11]
-        shop = (t.shop or "-")[:11]
+        name = (t.name or 'Unnamed')[:max_name]
+        category = (t.category or "N/A")[:max_category]
         
-        message += f"{date_str:<12} {t.amount:>8.2f} {category:<12} {name:<15} {shop:<12}\n"
+        lines.append(f"{date_str:<12} {t.amount:>8.2f} {category:<{max_category}} {name:<{max_name}}")
     
     # Footer
-    message += f"{'-'*50}\n"
-    message += f"{'TOTAL':<12} {total:>8.2f}\n"
-    message += f"{'='*50}\n"
-    message += f"📈 Transactions: {len(transactions)}\n"
+    lines.append("-" * (12 + 8 + max_category + max_name + 6))
+    lines.append(f"{'TOTAL':<12} {total:>8.2f}")
+    lines.append(f"\n📈 Total: {len(transactions)} transactions")
     
-    return message
+    return "\n".join(lines)
 
 def view_statistics_grouped(period, grouped_data, group_by):
     """Format grouped statistics with aligned columns"""
     if not grouped_data:
-        return f"📅 {period}\n\n✅ No transactions found for this period."
+        return f"📅 {period}\n\nNo transactions found."
     
     # Calculate totals
     total_amount = sum(row[1] for row in grouped_data)
     total_count = sum(row[2] for row in grouped_data)
     
+    # Find max length for group names
+    max_group = max((len(str(row[0] or "N/A")) for row in grouped_data), default=10)
+    max_group = min(max_group, 20)  # Cap at 20
+    
     # Header
-    message = f"📊 {'='*50}\n"
-    message += f"📅 {period}\n"
-    message += f"📂 Grouped by: {group_by.upper()}\n"
-    message += f"{'='*50}\n\n"
+    lines = [f"📅 {period}"]
+    lines.append(f"📂 Grouped by: {group_by.upper()}\n")
+    lines.append(f"{group_by.capitalize():<{max_group}} {'Amount':>12} {'Count':>8}")
+    lines.append("-" * (max_group + 12 + 8 + 4))
     
-    # Table header with aligned columns
-    message += f"{group_by.capitalize():<25} {'Amount':>12} {'Count':>8}\n"
-    message += f"{'-'*50}\n"
-    
-    # Data rows - values aligned to column headers
-    for row in grouped_data:
-        group_name = (row[0] or "N/A")[:24]  # Truncate if too long
+    # Data rows
+    for row in sorted(grouped_data, key=lambda x: x[1], reverse=True):
+        group_name = (str(row[0] or "N/A"))[:max_group]
         amount = row[1]
         count = row[2]
-        message += f"{group_name:<25} {amount:>12.2f} {count:>8}\n"
+        lines.append(f"{group_name:<{max_group}} {amount:>12.2f} {count:>8}")
     
-    # Footer with aligned totals
-    message += f"{'-'*50}\n"
-    message += f"{'TOTAL':<25} {total_amount:>12.2f} {total_count:>8}\n"
-    message += f"{'='*50}\n"
+    # Footer
+    lines.append("-" * (max_group + 12 + 8 + 4))
+    lines.append(f"{'TOTAL':<{max_group}} {total_amount:>12.2f} {total_count:>8}")
     
-    return message
+    return "\n".join(lines)
