@@ -1,8 +1,5 @@
 from email.mime import application
 import os
-from commands.account.view import  start_view
-from commands.account_managment import WAITING_ACCOUNT_NAME, create_account, handle_invite_callback, handle_leave_callback, invite_user, join_account, leave_account, leave_account, list_accounts, receive_account_name
-from commands.transaction import WAITING_FOR_AMOUNT_UPDATE, WAITING_FOR_CATEGORY, WAITING_FOR_CATEGORY_UPDATE, WAITING_FOR_DATE, WAITING_FOR_DATE_UPDATE, WAITING_FOR_NAME, WAITING_FOR_NAME_UPDATE, WAITING_FOR_SHOP_NAME, WAITING_FOR_SHOP_NAME_UPDATE, ask_for, handle_updating_field, receive_amount, receive_category, receive_date, receive_name, receive_shop_name, start_transaction, transaction_flow, update_amount, update_category, update_date, update_name, update_shop_name
 from commands.cancel import cancel_command
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton, BotCommand
 from telegram.ext import (
@@ -15,9 +12,9 @@ from telegram.ext import (
     ConversationHandler
 )
 from dotenv import load_dotenv
+from commands.transaction import WAITING_FOR_AMOUNT, WAITING_FOR_AMOUNT_UPDATE, WAITING_FOR_CATEGORY, WAITING_FOR_CATEGORY_UPDATE, WAITING_FOR_DATE, WAITING_FOR_DATE_UPDATE, WAITING_FOR_NAME, WAITING_FOR_NAME_UPDATE, WAITING_FOR_SHOP_NAME, WAITING_FOR_SHOP_NAME_UPDATE, handle_updating_field, receive_amount, receive_category, receive_date, receive_name, receive_shop_name, start_transaction, update_amount, update_category, update_date, update_name, update_shop_name
 from database import db
 from database.models import User, Transaction
-from menus.account_menu import WAITING_FOR_AMOUNT, handle_account_menu
 from utils.utils import parse_date_range
 from menus.main_menu import handle_main_menu_button
 from utils.decorators import is_authenticated
@@ -26,11 +23,6 @@ from commands.help import help_command
 from commands.logout import logout_command
 from utils.auth import check_password
 from utils.config import Settings
-from menus.spendings_menu import (
-    handle_spendings_menu, 
-    receive_new_account_name, 
-    WAITING_FOR_NEW_ACCOUNT_NAME
-)
 
 
 # Load environment variables
@@ -54,6 +46,8 @@ async def post_init(application: Application):
         BotCommand("logout", "Logout from your account"),
     ]
     await application.bot.set_my_commands(commands)
+
+
 
 
 def main():
@@ -87,19 +81,10 @@ def main():
         fallbacks=[CommandHandler("cancel", cancel_command)],
     )
 
-    spendings_conv = ConversationHandler(
-    entry_points=[MessageHandler(filters.Regex(f"^{emoji('NEW')} Add New Account$"), handle_spendings_menu)],
-    states={
-        WAITING_FOR_NEW_ACCOUNT_NAME: [
-            MessageHandler(filters.TEXT & ~filters.COMMAND, receive_new_account_name)
-        ],
-    },
-    fallbacks=[CommandHandler('cancel', cancel_command)],
-    )
-
+  
     transaction_conv = ConversationHandler(
     entry_points=[
-        MessageHandler(filters.Regex(f'^{emoji("NEW")} Add Transaction$'), lambda u, c: start_transaction(u, c))
+        MessageHandler(filters.Regex(f'^{emoji("NEW")} Add Transaction$'),start_transaction)
     ],
     states={
         WAITING_FOR_AMOUNT: [
@@ -146,30 +131,13 @@ def main():
 )
     
 
-    account_conv = ConversationHandler(
-        entry_points=[CommandHandler('createaccount', create_account)],
-        states={
-            WAITING_ACCOUNT_NAME: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, receive_account_name)
-            ],
-        },
-        fallbacks=[CommandHandler('cancel', cancel_command)],
-    )
 
     # Add handlers
     application.add_handler(conv_handler)
     application.add_handler(CommandHandler('help', help_command))
     application.add_handler(CommandHandler('logout', logout_command))
     application.add_handler(update_transaction_conv)
-    application.add_handler(account_conv)
-    application.add_handler(spendings_conv)
     application.add_handler(transaction_conv)
-    application.add_handler(CommandHandler('accounts', list_accounts))
-    application.add_handler(CommandHandler('invite', invite_user))
-    application.add_handler(CommandHandler('join', join_account))
-    application.add_handler(CommandHandler('leave', leave_account))
-    application.add_handler(CallbackQueryHandler(handle_invite_callback, pattern='^invite_account_'))
-    application.add_handler(CallbackQueryHandler(handle_leave_callback, pattern='^leave_account_'))
     application.add_handler(
     MessageHandler(
         filters.TEXT & ~filters.COMMAND,

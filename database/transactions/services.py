@@ -4,44 +4,44 @@ from database.models import Transaction
 from sqlalchemy.orm import Session
 import logging
 from datetime import date, datetime, timedelta,time
-from database.models import Transaction,Account
+from database.models import Transaction
 
 logger = logging.getLogger(__name__)
 
-def get_all_categories_from_account(account_name, session: Session):
+def get_all_categories_from_account():
     """Retrieve all unique categories from transactions for a specific account"""
     try:
-        categories = session.query(Transaction.category).join(Account, Transaction.account_id == Account.id).filter(
-            Account.name == account_name
-        ).distinct().all()
+        session = db.get_session()
+        categories = session.query(Transaction.category).distinct().all()
         return [category[0] for category in categories]
     except Exception as e:
-        logger.error(f"Error retrieving categories for account '{account_name}': {e}")
+        logger.error(f"Error retrieving categories ': {e}")
         raise
 
-def get_user_shops_from_account(account_name, session: Session):
+def get_user_shops_from_account():
     """Retrieve all unique shops from transactions for a specific account"""
     try:
-        shops = session.query(Transaction.shop).join(Account, Transaction.account_id == Account.id).filter(
-            Account.name == account_name
-        ).distinct().all()
+        session = db.get_session()
+        shops = session.query(Transaction.shop).distinct().all()
         return [shop[0] for shop in shops if shop[0] is not None]
     except Exception as e:
-        logger.error(f"Error retrieving shops for account '{account_name}': {e}")
+        logger.error(f"Error retrieving shops for account: {e}")
         raise
 
-def get_all_categories(session: Session):
+def get_all_categories():
     """Retrieve all unique categories from transactions"""
     try:
+        session = db.get_session()
         categories = session.query(Transaction.category).distinct().all()
         return [category[0] for category in categories]
     except Exception as e:
         logger.error(f"Error retrieving categories: {e}")
         raise
 
-def get_spendings_grouped(account: str, group_by: str, start_date: datetime, end_date: datetime, session: Session):
+def get_spendings_grouped( group_by: str, start_date: datetime, end_date: datetime):
     """Retrieve spendings grouped by category or shop with totals"""
     try:
+        session = db.get_session()
         # Determine which column to group by
         if group_by.lower() == 'category':
             group_column = Transaction.category
@@ -55,11 +55,8 @@ def get_spendings_grouped(account: str, group_by: str, start_date: datetime, end
             group_column,
             func.sum(Transaction.amount).label('total_amount'),
             func.count(Transaction.id).label('transaction_count')
-        ).join(
-            Account, Transaction.account_id == Account.id
         ).where(
-            Transaction.date.between(start_date, end_date),
-            Account.name == account
+            Transaction.date.between(start_date, end_date)
         ).group_by(
             group_column
         ).order_by(
@@ -69,24 +66,25 @@ def get_spendings_grouped(account: str, group_by: str, start_date: datetime, end
         results = session.execute(stmt).all()
         return results  # Returns list of tuples: [(category/shop, total, count), ...]
     except Exception as e:
-        logger.error(f"Error retrieving grouped spendings for account '{account}' by {group_by} between {start_date} and {end_date}: {e}")
+        logger.error(f"Error retrieving grouped spendings by {group_by} between {start_date} and {end_date}: {e}")
         raise
 
-def get_spendings(account: str, start_date: datetime, end_date: datetime, session: Session):
+def get_spendings(start_date: datetime, end_date: datetime):
     """Retrieve spendings for a given account and date range"""
     try:
+        session = db.get_session()
         start_of_day = start_date
         end_of_day = end_date
         
-        stmt = select(Transaction).join(Account, Transaction.account_id == Account.id).where(Transaction.date.between(start_of_day, end_of_day)).where(Account.name == account)
+        stmt = select(Transaction).where(Transaction.date.between(start_of_day, end_of_day))
         transactions = session.execute(stmt).scalars().all()
         return transactions
     except Exception as e:
-        logger.error(f"Error retrieving spendings for account '{account}' between {start_date} and {end_date}: {e}")
+        logger.error(f"Error retrieving spendings between {start_date} and {end_date}: {e}")
         raise
         
         
     except Exception as e:
-        logger.error(f"Error retrieving spendings for account '{account}' on {date}: {e}")
+        logger.error(f"Error retrieving spendings on {date}: {e}")
         raise
 

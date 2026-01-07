@@ -8,11 +8,11 @@ from utils.config import Settings
 logger = Settings.LOGGER
 
 
-def create_transaction(session: Session, user_id: int, account_id: int, amount: int, category: str, shop: str = None,name:str = None,date: datetime = datetime.utcnow()) -> Transaction:
+def create_transaction(user_id: int, amount: int, category: str, shop: str = None,name:str = None,date: datetime = datetime.utcnow()) -> Transaction:
     """Create a new transaction record"""
     try:
+        session = db.get_session()
         new_transaction = Transaction(
-            account_id = account_id,
             user_id=user_id,
             amount=amount,
             name = name,
@@ -37,9 +37,10 @@ def get_transactions(session: Session):
         logger.error(f"Error retrieving transactions: {e}")
         raise
 
-def update_transaction(session: Session, transaction_id: int, new_transaction) -> Transaction:
+def update_transaction(transaction_id: int, new_transaction) -> Transaction:
     """Update a transaction by its ID"""
     try:
+        session = db.get_session()
         transaction = session.query(Transaction).filter(Transaction.id == transaction_id).first()
         if not transaction:
             raise ValueError(f"Transaction with ID {transaction_id} not found.")
@@ -60,9 +61,10 @@ def update_transaction(session: Session, transaction_id: int, new_transaction) -
         raise
 
 
-def delete_transaction(session: Session, transaction_id: int) -> bool:
+def delete_transaction(transaction_id: int) -> bool:
     """Delete a transaction by its ID"""
     try:
+        session = db.get_session()
         transaction = session.query(Transaction).filter(Transaction.id == transaction_id).first()
         if transaction:
             session.delete(transaction)

@@ -77,3 +77,8 @@ class Settings:
                 "Use /help to see available commands."
     )
 
+# =============================================================================
+# DEFAULT VARIABLES
+# =============================================================================
+    SHOPS = ['Zabka', 'Carrefour', 'Lidl', 'Biedronka', 'Other']
+    CATIEGORIES = ['Food', 'Transport', 'Entertainment', 'Caffeine', 'Other', 'Junk Food', 'Health', 'Household', 'Clothing', 'Hygiene', 'Nicotine', 'Electronics','Studies','Subscriptions','Delivery']

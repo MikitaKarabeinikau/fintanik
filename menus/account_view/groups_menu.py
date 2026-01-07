@@ -2,8 +2,8 @@
 from sqlalchemy import update
 from telegram import KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardMarkup, Update
 from telegram.ext import ContextTypes
-from database import db
 from database.transactions.services import get_spendings, get_spendings_grouped
+from menus.main_menu import get_main_menu
 from utils.config import Settings
 from utils.utils import parse_date_range, view_statistics_all, view_statistics_grouped
 
@@ -33,13 +33,12 @@ async def handle_groups_menu(context: ContextTypes.DEFAULT_TYPE, update: Update)
         )
         return
     if text == f"{emoji('BACK')} BACK":
-        from menus.account_menu import get_account_menu
-        account_name = context.user_data.get('current_account')
         context.user_data['viewing_groups'] = False
-        context.user_data['viewing_stats'] = True
+        context.user_data['viewing_stats'] = False
+        context.user_data.pop('selected_date_range', None)
         await update.message.reply_text(
             "Back to account menu",
-            reply_markup=get_account_menu(account_name)
+            reply_markup=get_main_menu()
         )
         return
     elif text == "ALL TRANSACTIONS":
@@ -80,8 +79,7 @@ def get_all_transactions(update: Update, context: ContextTypes.DEFAULT_TYPE,text
     start, end = parse_date_range(context, update, text)
     print(f"Parsed date range: {start} to {end}")
 
-    transactions = get_spendings(session=db.get_session(),
-                                account=context.user_data.get('current_account'),
+    transactions = get_spendings(
                                 start_date=start, end_date=end)
     return transactions
 
@@ -89,8 +87,7 @@ def get_groupe_transactions(update: Update, context: ContextTypes.DEFAULT_TYPE,t
     start, end = parse_date_range(context, update, text)
     print(f"Parsed date range: {start} to {end}")
 
-    transactions = get_spendings_grouped(session=db.get_session(),
-                                account=context.user_data.get('current_account'),
+    transactions = get_spendings_grouped(
                                 start_date=start, end_date=end,
                                 group_by=group_by)
     return transactions

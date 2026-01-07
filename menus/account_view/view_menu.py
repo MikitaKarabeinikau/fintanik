@@ -49,12 +49,13 @@ async def handle_date_selection(update: Update, context: ContextTypes.DEFAULT_TY
     
     # Handle BACK button
     if text == f"{emoji('BACK')} BACK":
+        from menus.spendings_menu import get_spendings_menu
         context.user_data.pop('viewing_stats', None)
-        from menus.account_menu import get_account_menu
-        account_name = context.user_data.get('current_account')
+        context.user_data.pop('viewing_groups', None)
+        context.user_data.pop('selected_date_range', None)
         await update.message.reply_text(
             "Back to account menu",
-            reply_markup=get_account_menu(account_name)
+            reply_markup=get_spendings_menu(update, context)
         )
         return
     elif text in ["TODAY", "THIS WEEK", "LAST 7 DAYS", "THIS MONTH", "LAST MONTH", "THIS YEAR", "LAST YEAR"]:

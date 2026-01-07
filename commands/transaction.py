@@ -2,15 +2,11 @@
 import datetime
 from telegram import ReplyKeyboardMarkup, Update, KeyboardButton
 from telegram.ext import ContextTypes, ConversationHandler
-from bot import transaction
 from database import db
-from database.accounts.crud import get_account_id_by_name
 from database.transactions.crud import create_transaction, update_transaction
 from database.transactions.services import get_all_categories, get_all_categories_from_account, get_spendings, get_user_shops_from_account
-from menus.account_menu import get_account_menu
 from menus.account_view.delete_transaction_menu import get_delete_list_menu
 from menus.account_view.view_menu import get_dates_menu
-from menus.spendings_menu import WAITING_FOR_NEW_ACCOUNT_NAME, get_spendings_menu
 from utils.decorators import is_authenticated
 from menus.account_view.view_menu import dates_keyboard
 
@@ -40,10 +36,9 @@ skip_keyboard = ReplyKeyboardMarkup(
 
 def get_categories_keyboard(context: ContextTypes.DEFAULT_TYPE):
     """Create categories keyboard"""
-    account = context.user_data.get('current_account')
-    default_categories = ['Food', 'Transport', 'Entertainment', 'Caffeine', 'Other']
+    default_categories = Settings.CATIEGORIES
 
-    user_categories = get_all_categories_from_account(account, db.get_session())
+    user_categories = get_all_categories_from_account()
     print("User categories:", user_categories)
     categories = list(set(set(default_categories) | set(user_categories)))
     keyboard = [[KeyboardButton(category)] for category in categories]
@@ -53,17 +48,13 @@ def get_categories_keyboard(context: ContextTypes.DEFAULT_TYPE):
 
 def get_shop_keyboard(context: ContextTypes.DEFAULT_TYPE):
     """Create shop keyboard (if needed)"""
-    account = context.user_data.get('current_account')
-    print(f"DEBUG: account_name = {account}")  # ✅ Add this
+
+    shops = Settings.SHOPS
+    user_shops = get_user_shops_from_account()
     
-    shops = ['Zabka', 'Carrefour', 'Lidl', 'Biedronka', 'Other']
-    user_shops = get_user_shops_from_account(account, db.get_session())
-    print(f"DEBUG: User shops from DB = {user_shops}")  # ✅ Add this
-    print(f"DEBUG: Default shops = {shops}")  # ✅ Add this
-    
-    shops = list(set(shops) | set(user_shops))  # ✅ Simplified - no need for set(set())
-    print(f"DEBUG: Union shops = {shops}")  # ✅ Add this
-    
+    shops = list(set(shops) | set(user_shops)) 
+    print(f"DEBUG: Union shops = {shops}")
+
     keyboard = [[KeyboardButton(shop)] for shop in shops]
     keyboard.append([KeyboardButton(f"{emoji('BACK')} Back")])
     keyboard.append([KeyboardButton(f"{emoji('SKIP')} Skip")])
@@ -97,6 +88,7 @@ def transaction_flow_info(context: ContextTypes.DEFAULT_TYPE):
            f'Shop: {context.user_data["transaction"].get("shop")}\n'
 
 async def transaction_flow(update: Update, context: ContextTypes.DEFAULT_TYPE, action_key: str, transaction, skip_field=None):
+    from menus.spendings_menu import get_spendings_menu
     if action_key == 'amount':
         await update.message.reply_text(f"📝 Current Transaction Info:\n{transaction_flow_info(context)}")
         return await ask_for(update, context, transaction, 'amount')
@@ -113,11 +105,8 @@ async def transaction_flow(update: Update, context: ContextTypes.DEFAULT_TYPE, a
         await update.message.reply_text(f"📝 Current Transaction Info:\n{transaction_flow_info(context)}")
         return await ask_for(update, context, transaction, 'date')
     elif action_key is None:
-        account = context.user_data.get('current_account')
         # Save transaction to DB
-        account_id = get_account_id_by_name(account, db.get_session())
-        create_transaction(db.get_session(), update.effective_user.id,
-                           account_id,
+        create_transaction( update.effective_user.id,
                            transaction['amount'],
                            transaction['category'],
                            transaction.get('shop'),
@@ -125,11 +114,10 @@ async def transaction_flow(update: Update, context: ContextTypes.DEFAULT_TYPE, a
                            transaction.get('date'))
         
         await update.message.reply_text(
-            f"✅ Transaction added to '{account}'!\n TRANSACTION INFO:\nPRODUCT NAME: {transaction.get('name')}\nAMOUNT: {transaction['amount']} zl.\nCATEGORY: {transaction['category']}\nSHOP: {transaction.get('shop')}\n",
+            f"✅ Transaction !\n TRANSACTION INFO:\nPRODUCT NAME: {transaction.get('name')}\nAMOUNT: {transaction['amount']} zl.\nCATEGORY: {transaction['category']}\nSHOP: {transaction.get('shop')}\n",
             reply_markup=get_spendings_menu(update, context)
         )
         context.user_data.pop('transaction', None)
-        context.user_data.pop('current_account', None)
         return ConversationHandler.END
 
 
@@ -138,12 +126,13 @@ async def receive_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
     transaction = context.user_data.get('transaction', {})
     try:
         if update.message.text.strip() == f"{emoji('CANCEL')} Cancel":
+            from menus.spendings_menu import get_spendings_menu
+
             await update.message.reply_text(
                 "❌ Transaction cancelled.",
                 reply_markup=get_spendings_menu(update, context)
             )
             context.user_data.pop('transaction', None)
-            context.user_data.pop('current_account', None)
             return ConversationHandler.END
         amount = float(update.message.text.strip())
         context.user_data['transaction']['amount'] = amount
@@ -254,7 +243,7 @@ def get_updating_field_menu():
 def get_update_list_menu(update: Update,context: ContextTypes.DEFAULT_TYPE):
     update_list_keyboard = []
     start, end = parse_date_range(update = update, context = context,text = context.user_data.get('selected_date_range'))
-    transaction_list = get_spendings(account=context.user_data.get('current_account'), start_date=start, end_date=end,session=db.get_session())
+    transaction_list = get_spendings(start_date=start, end_date=end)
     for row in transaction_list:
         button_text = f"{row.id} {row.name} {row.amount} {row.shop} {row.category} {row.date}"
         update_list_keyboard.append([KeyboardButton(button_text)])
@@ -277,11 +266,11 @@ async def handle_transaction_range(update: Update, context: ContextTypes.DEFAULT
 
     # Handle BACK button
     if text == f"{emoji('BACK')} BACK":
+        from menus.spendings_menu import get_spendings_menu
         context.user_data.pop('date_range_updating', None)
-        account_name = context.user_data.get('current_account')
         await update.message.reply_text(
             "Back to account menu",
-            reply_markup=get_account_menu(account_name)
+            reply_markup=get_spendings_menu(update, context)
         )
         return
     elif text in ["TODAY", "THIS WEEK", "LAST 7 DAYS", "THIS MONTH", "LAST MONTH", "THIS YEAR", "LAST YEAR"]:
@@ -298,11 +287,11 @@ async def handle_transaction_to_update(update: Update, context: ContextTypes.DEF
     text = update.message.text
 
     if text == f"{emoji('BACK')} BACK":
+        from menus.spendings_menu import get_spendings_menu
         context.user_data.pop('update_transaction', None)
-        account_name = context.user_data.get('current_account')
         await update.message.reply_text(
             "Back to account menu",
-            reply_markup=get_account_menu(account_name)
+            reply_markup=get_spendings_menu(update, context)
         )
         return
 
@@ -335,14 +324,16 @@ async def handle_transaction_to_update(update: Update, context: ContextTypes.DEF
         )
 
 async def handle_updating_field(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    from database.transactions.crud import update_transaction
+    from menus.spendings_menu import get_spendings_menu
     text = update.message.text
+    
 
     if text == f"{emoji('BACK')} BACK":
         context.user_data.pop('selecting_update_field', None)
-        account_name = context.user_data.get('current_account')
         await update.message.reply_text(
             "Back to account menu",
-            reply_markup=get_account_menu(account_name)
+            reply_markup=get_spendings_menu(update, context)
         )
         return
     elif text in ["AMOUNT", "NAME", "CATEGORY", "SHOP", "DATE"]:
@@ -355,19 +346,18 @@ async def handle_updating_field(update: Update, context: ContextTypes.DEFAULT_TY
         if transaction is None:
             await update.message.reply_text(
                 "❌ No transaction selected for updating.",
-                reply_markup=get_account_menu(context.user_data.get('current_account'))
+                reply_markup=get_spendings_menu(update, context)
             )
             return ConversationHandler.END
         transaction_id = transaction.get('id')
-        print(f"DEBUG: transaction_id = {transaction_id}")  # Add this
-        update_transaction(db.get_session(), transaction_id, transaction)  # Remove await
+        print(f"DEBUG: transaction_id = {transaction_id}")
+        update_transaction( transaction_id, transaction)
         print("DEBUG: Transaction updated in DB")  # Add this
         await update.message.reply_text(
             f"✅ Transaction updated!\n UPDATED TRANSACTION INFO:\nPRODUCT NAME: {transaction.get('name')}\nAMOUNT: {transaction['amount']} zl.\nCATEGORY: {transaction['category']}\nSHOP: {transaction.get('shop')}\n",
             reply_markup=get_spendings_menu(update, context)
         )
         context.user_data.pop('transaction', None)
-        context.user_data.pop('current_account', None)
         context.user_data.pop('selecting_update_field', None)
         return ConversationHandler.END
     else:
@@ -380,7 +370,7 @@ async def handle_transaction_range_field(update: Update, context: ContextTypes.D
 
 async def update_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['transaction']['amount'] = float(update.message.text)
-    context.user_data['selecting_update_field'] = True  # Add this
+    context.user_data['selecting_update_field'] = True 
     await update.message.reply_text(
         f"✅ Amount updated to: {update.message.text}\n\nSelect the next field to update or 'UPDATE TRANSACTION' to save changes.\n {await updating_info(context)}",
         reply_markup=get_updating_field_menu()
