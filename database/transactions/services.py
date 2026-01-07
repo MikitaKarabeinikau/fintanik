@@ -88,3 +88,31 @@ def get_spendings(start_date: datetime, end_date: datetime):
         logger.error(f"Error retrieving spendings on {date}: {e}")
         raise
 
+def get_grouped_spendings_by_category_for_current_month():
+    """Retrieve spendings grouped by category for the current month"""
+    try:
+        session = db.get_session()
+        now = datetime.now()
+        start_of_month = datetime(now.year, now.month, 1)
+        if now.month == 12:
+            end_of_month = datetime(now.year + 1, 1, 1) - timedelta(seconds=1)
+        else:
+            end_of_month = datetime(now.year, now.month + 1, 1) - timedelta(seconds=1)
+        
+        stmt = select(
+            Transaction.category,
+            func.sum(Transaction.amount).label('total_amount'),
+        ).where(
+            Transaction.date.between(start_of_month, end_of_month)
+        ).group_by(
+            Transaction.category
+        ).order_by(
+            func.sum(Transaction.amount).desc()
+        )
+        
+        results = session.execute(stmt).all()
+        result_dict = {category: total for category, total in results}
+        return result_dict  # Returns a dictionary: {category: total, ...}
+    except Exception as e:
+        logger.error(f"Error retrieving grouped spendings by category for current month: {e}")
+        raise

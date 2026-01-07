@@ -12,9 +12,9 @@ logger = logging.getLogger(__name__)
 async def check_password(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Check if the provided password is correct"""
     user = update.effective_user
+    
     password = update.message.text
     
-    logger.info(f"Password check for user {user.id}")
     
     if password == Settings.BOT_PASSWORD:
         logger.info(f"Correct password from user {user.id}")

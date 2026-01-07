@@ -36,7 +36,7 @@ skip_keyboard = ReplyKeyboardMarkup(
 
 def get_categories_keyboard(context: ContextTypes.DEFAULT_TYPE):
     """Create categories keyboard"""
-    default_categories = Settings.CATIEGORIES
+    default_categories = Settings.CATEGORIES
 
     user_categories = get_all_categories_from_account()
     print("User categories:", user_categories)

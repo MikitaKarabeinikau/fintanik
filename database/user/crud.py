@@ -15,3 +15,15 @@ def get_user_by_telegram_id(telegram_id: int):
         raise
     finally:
         session.close()
+
+def get_all_users():
+    """Retrieve all users from the database"""
+    session = db.get_session()
+    try:
+        users = session.query(User.telegram_id).all()
+        return users
+    except Exception as e:
+        logger.error(f"Error retrieving all users: {e}")
+        raise
+    finally:
+        session.close()

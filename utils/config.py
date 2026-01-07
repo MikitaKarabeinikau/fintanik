@@ -81,4 +81,4 @@ class Settings:
 # DEFAULT VARIABLES
 # =============================================================================
     SHOPS = ['Zabka', 'Carrefour', 'Lidl', 'Biedronka', 'Other']
-    CATIEGORIES = ['Food', 'Transport', 'Entertainment', 'Caffeine', 'Other', 'Junk Food', 'Health', 'Household', 'Clothing', 'Hygiene', 'Nicotine', 'Electronics','Studies','Subscriptions','Delivery']
+    CATEGORIES = ['Food', 'Transport', 'Entertainment', 'Caffeine', 'Other', 'Junk Food', 'Health', 'Household', 'Clothing', 'Hygiene', 'Nicotine', 'Electronics','Studies','Subscriptions','Delivery']

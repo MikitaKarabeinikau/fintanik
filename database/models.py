@@ -39,3 +39,17 @@ class Transaction(Base):
         return f"<Transaction(user_id={self.user_id}, amount={self.amount}, category={self.category})>"
 
 
+class Budget(Base):
+    __tablename__ = 'budgets'
+    
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.telegram_id'), nullable=False)
+    category = Column(String(255), nullable=False)
+    amount = Column(Float, nullable=False)  # Store in cents
+    period_start = Column(DateTime, nullable=False)
+    period_end = Column(DateTime, nullable=False)
+    
+    user = relationship("User", backref="budgets")
+    
+    def __repr__(self):
+        return f"<Budget(user_id={self.user_id}, category={self.category}, amount={self.amount})>"

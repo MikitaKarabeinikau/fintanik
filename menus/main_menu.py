@@ -41,6 +41,8 @@ async def handle_main_menu_button(update: Update, context: ContextTypes.DEFAULT_
 
 
     # Add this check BEFORE the current_account check
+
+    # if context.user_data.get()
        
     if context.user_data.get('date_range_updating'):
         print(f"🔍 MAIN_MENU: date_range_updating flag detected! Calling handle_transaction_range")
@@ -73,7 +75,7 @@ async def handle_main_menu_button(update: Update, context: ContextTypes.DEFAULT_
     elif text == 'SPENDINGS':
         from menus.spendings_menu import handle_spendings_menu
         return await handle_spendings_menu(update, context)
-    # Handle all spendings menu buttons
+    # Handle all spendings menu buttons TODO: v2.0.0 Refactor into separate handler
     elif text in [f"{emoji('NEW')} Add Transaction", 
                 f"{emoji('UPDATE')} Update Transaction",
                 f"{emoji('DELETE')} Delete Transaction",
@@ -86,8 +88,14 @@ async def handle_main_menu_button(update: Update, context: ContextTypes.DEFAULT_
         update.message.reply_text("💰 Savings feature coming soon!")
         return
     elif text == 'BUDGETS':
-        update.message.reply_text("📊 Budgets feature coming soon!")
-        return
+        from menus.budget_menu import handle_budget_menu
+        context.user_data['in_budget_menu'] = True
+        return await handle_budget_menu(update, context)
+    
+    elif context.user_data.get('in_budget_menu'):
+        from menus.budget_menu import handle_budget_menu
+        return await handle_budget_menu(update, context)
+
     elif text == 'EARNINGS':
         update.message.reply_text("💵 Earnings feature coming soon!")
         return
