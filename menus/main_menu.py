@@ -67,15 +67,13 @@ async def handle_main_menu_button(update: Update, context: ContextTypes.DEFAULT_
         from menus.account_view.delete_transaction_menu import handle_transaction_to_delete
         return await handle_transaction_to_delete(update, context)
  
+    if context.user_data.get('in_credits_menu') or context.user_data.get('in_credit_payment') or context.user_data.get('delete_credit'):
+        from menus.credit_menu import handle_credit_menu
+        return await handle_credit_menu(update, context)
 
 
-
-    if text.startswith(f"{emoji('MONEY')}") :
-        from menus.spendings_menu import handle_spendings_menu
-        return await handle_spendings_menu(update, context)
-    
-
-    elif text == 'SPENDINGS':
+  
+    if text == 'SPENDINGS':
         from menus.spendings_menu import handle_spendings_menu
         context.user_data.pop('in_budget_menu', None)
         return await handle_spendings_menu(update, context)

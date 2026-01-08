@@ -39,13 +39,13 @@ def show_credit_statistics():
         
         # Overall summary
         lines = ["📊 Credit Statistics\n"]
-        lines.append("=" * 45)
+        lines.append("=" * 42)
         lines.append(f"Total Credits: {summary['total_credits']}")
         lines.append(f"Total Borrowed: {summary['total_borrowed']:.2f} zl")
         lines.append(f"Total Paid: {summary['total_paid']:.2f} zl")
         lines.append(f"Remaining: {summary['total_remaining']:.2f} zl")
         lines.append(f"Progress: {summary['progress_percent']:.1f}%")
-        lines.append("=" * 45)
+        lines.append("=" * 42)
         lines.append("")
         
         # Individual credits
@@ -58,7 +58,7 @@ def show_credit_statistics():
             
             if credit['next_payment_date']:
                 next_date = credit['next_payment_date'].strftime('%d.%m.%Y') if hasattr(credit['next_payment_date'], 'strftime') else str(credit['next_payment_date'])
-                lines.append(f"   Next Payment: {next_date} ({credit['monthly_payment']:.2f} zl)")
+                lines.append(f"   Next Payment: {next_date} ({credit['next_payment_amount']:.2f} zl)")
             
             lines.append("")
         
@@ -96,7 +96,98 @@ async def handle_credit_menu(update: Update, context: ContextTypes.DEFAULT_TYPE)
             reply_markup=get_credit_menu()
         )
     elif update.message.text == f"{emoji('MONEY')} Pay Credit/Loan":
-        await update.message.reply_text("Feature to update credit/loan is under development.")
+        context.user_data['in_credit_payment'] = True 
+        await update.message.reply_text("Select the credit/loan you wish to make a payment for.", reply_markup=get_credits_list_keyboard())
+
+    elif context.user_data.get('in_credit_payment'):
+        context.user_data.pop('in_credit_payment', None)
+        context.user_data['credit_to_pay'] = update.message.text
+        context.user_data['awaiting_payment_amount'] = True
+        await update.message.reply_text("Please choose a payment option:", reply_markup=ReplyKeyboardMarkup(
+            [[KeyboardButton(f"Instant Pay")],
+             [KeyboardButton(f"Custom Amount")],
+             [KeyboardButton(f"Full Payoff")],
+             [KeyboardButton(f"{emoji('BACK')} Back")]],
+            resize_keyboard=True
+        ))
+    
+    elif context.user_data.get('awaiting_payment_amount'):
+        context.user_data.pop('awaiting_payment_amount', None)
+        context.user_data['payment_option'] = update.message.text
+        if update.message.text == f"{emoji('BACK')} Back":
+            await update.message.reply_text("Payment cancelled.", reply_markup=get_credit_menu())
+            return
+        elif update.message.text == "Instant Pay":
+            from database.credit_payment.services import pay_next_credit_payment
+            context.user_data['payment_amount'] = None  # Will be handled in payment flow
+            pay_next_credit_payment(int(context.user_data['credit_to_pay'].split(" - ")[0]))
+            await update.message.reply_text(f"{emoji('DONE')} Payment made successfully!", reply_markup=get_credit_menu())
+        elif update.message.text == "Full Payoff":
+            context.user_data['payment_amount'] = 'full'
+            context.user_data['in_full_payoff'] = True
+            from database.credit.crud import get_credit_amount
+            amount = get_credit_amount(int(context.user_data['credit_to_pay'].split(" - ")[0]))
+            await update.message.reply_text(
+                f"Amount to be paid is {amount:.2f} zl. If not text amount", 
+                reply_markup=ReplyKeyboardMarkup(
+                    [[KeyboardButton('YES')], [KeyboardButton(f"{emoji('BACK')} Back")]], 
+                    resize_keyboard=True
+                )
+            )
+        elif update.message.text == "Custom Amount":
+            context.user_data['in_custom_payment'] = True
+            await update.message.reply_text("Please enter the payment amount (in your currency):", reply_markup=ReplyKeyboardMarkup(
+                [[KeyboardButton(f"{emoji('BACK')} Back")]],
+                resize_keyboard=True
+            ))
+    elif context.user_data.get('in_custom_payment'):
+        context.user_data.pop('in_custom_payment', None)
+        if update.message.text == f"{emoji('BACK')} Back":
+            await update.message.reply_text("Payment cancelled.", reply_markup=get_credit_menu())
+            return
+        try:
+            amount = float(update.message.text)
+            from database.credit_payment.services import pay_custom_credit_payment
+            pay_custom_credit_payment(int(context.user_data['credit_to_pay'].split(" - ")[0]), amount)
+            await update.message.reply_text(f"{emoji('DONE')} Payment of {amount:.2f} zl made successfully!", reply_markup=get_credit_menu())
+        except ValueError:
+            await update.message.reply_text("Invalid amount. Please enter a numeric value or 'Back' to cancel.")
+            return
+    
+    elif context.user_data.get('in_full_payoff'):
+        context.user_data.pop('in_full_payoff', None)
+        context.user_data.pop('payment_option', None)
+        context.user_data.pop('in_credits_menu', None)
+        if update.message.text == f"{emoji('BACK')} Back":
+            await update.message.reply_text("Payment cancelled.", reply_markup=get_credit_menu())
+            return
+        elif update.message.text == 'YES':
+            from database.credit_payment.services import pay_full_credit
+            credit_id = int(context.user_data['credit_to_pay'].split(" - ")[0])
+            amount = None
+            pay_full_credit(credit_id, amount)
+            await update.message.reply_text(f"{emoji('DONE')} Full payoff made successfully!", reply_markup=get_credit_menu())
+        elif update.message.text == f"{emoji('BACK')} BACK":
+            from menus.main_menu import get_main_menu
+            # Clear all credit-related flags
+            context.user_data.pop('in_credits_menu', None)
+            context.user_data.pop('in_credit_payment', None)
+            context.user_data.pop('delete_credit', None)
+            await update.message.reply_text(
+                "Returning to main menu.",
+                reply_markup=get_main_menu()
+            )
+        else:
+            try:
+                amount = float(update.message.text)
+                from database.credit_payment.services import pay_full_credit
+                credit_id = int(context.user_data['credit_to_pay'].split(" - ")[0])
+                pay_full_credit(credit_id, amount)
+                await update.message.reply_text(f"{emoji('DONE')} Payment of {amount:.2f} zl made successfully!", reply_markup=get_credit_menu())
+            except ValueError:
+                await update.message.reply_text("Invalid amount. Please enter a numeric value or 'YES' for full payoff.")
+                return
+
     elif update.message.text == f"{emoji('DELETE')} Delete Credit/Loan":
         context.user_data['delete_credit'] = True
         context.user_data.pop('in_credit_menu', None)
@@ -105,13 +196,11 @@ async def handle_credit_menu(update: Update, context: ContextTypes.DEFAULT_TYPE)
     elif context.user_data.get('delete_credit'):
         context.user_data.pop('delete_credit', None)
         from database.credit.crud import delete_credit, get_credits
-        from database.credit_payment.crud import delete_credit_payment
         if update.message.text == f"{emoji('BACK')} Back":
             await update.message.reply_text("Deletion cancelled.", reply_markup=get_credit_menu())
             return
         text = update.message.text
         delete_credit(text.split(" - ")[0])  # Assuming lender_name is unique
-        delete_credit_payment(text.split(" - ")[0])
 
         await update.message.reply_text(f"{emoji('DONE')} Credit/Loan deleted successfully!", reply_markup=get_credit_menu())
 
@@ -123,6 +212,10 @@ async def handle_credit_menu(update: Update, context: ContextTypes.DEFAULT_TYPE)
         )
     elif update.message.text == f"{emoji('BACK')} BACK":
         from menus.main_menu import get_main_menu
+        # Clear all credit-related flags
+        context.user_data.pop('in_credits_menu', None)
+        context.user_data.pop('in_credit_payment', None)
+        context.user_data.pop('delete_credit', None)
         await update.message.reply_text(
             "Returning to main menu.",
             reply_markup=get_main_menu()

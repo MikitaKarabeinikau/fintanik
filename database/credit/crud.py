@@ -82,3 +82,11 @@ def delete_credit(credit_id: int) -> bool:
         session.rollback()
         logger.error(f"Error deleting credit {credit_id}: {e}")
         raise
+
+def get_credit_amount(credit_id: int) -> float:
+    """Retrieve the total amount for a specific credit"""
+    session = db.get_session()
+    credit = session.query(Credit).filter(Credit.id == credit_id).first()
+    if credit:
+        return credit.total_amount
+    return 0.0

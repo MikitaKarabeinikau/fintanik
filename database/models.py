@@ -68,7 +68,7 @@ class Credit(Base):
     end_date = Column(DateTime, nullable=False)
     last_payment_amount = Column(Float, nullable=False)  # Store in cents
     paid = Column(Boolean, default=False)
-
+    
     user = relationship("User", backref="credits")
     
     def __repr__(self):

@@ -1,5 +1,6 @@
 from sqlalchemy import func, update, select, case
 from database import db
+from database.credit_payment.services import get_next_credit_payment
 from database.models import Credit
 from sqlalchemy.orm import Session
 from datetime import datetime
@@ -107,10 +108,10 @@ def get_credit_statistics():
                 else_=0
             )).label('paid_payments'),
             # Sum of paid amounts
-            func.sum(case(
+            func.coalesce(func.sum(case(
                 (CreditPayment.status == True, CreditPayment.amount),
                 else_=0
-            )).label('total_paid'),
+            )), 0).label('total_paid'),
             # Sum of remaining payments
             func.sum(case(
                 (CreditPayment.status == False, CreditPayment.amount),
@@ -156,7 +157,8 @@ def get_credit_statistics():
                 'total_paid': row.total_paid or 0.0,
                 'remaining_amount': row.remaining_amount or 0.0,
                 'next_payment_date': row.next_payment_date,
-                'progress_percent': (row.paid_payments / row.total_payments * 100) if row.total_payments else 0
+                'progress_percent': (row.paid_payments / row.total_payments * 100) if row.total_payments else 0,
+                'next_payment_amount': get_next_credit_payment(row.id).amount if get_next_credit_payment(row.id) else 0.0
             })
         
         return statistics

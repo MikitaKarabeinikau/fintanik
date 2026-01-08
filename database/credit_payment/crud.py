@@ -22,12 +22,12 @@ def create_credit_payment(credit_id: int,
     session.refresh(new_payment)
     return new_payment
 
-def get_future_credit_payments(credit_id: int) -> list[CreditPayment]:
-    """Retrieve all future credit payment entries for a specific credit from the database"""
+def get_monthly_credit_payments(credit_id: int) -> int:
+    """Retrieve all future credit payments for a specific credit"""
     session = db.get_session()
-    stmt = select(CreditPayment).where(CreditPayment.credit_id == credit_id)
+    stmt = select(CreditPayment.amount).where(CreditPayment.credit_id == credit_id).order_by(CreditPayment.payment_date).limit(1)
     payments = session.execute(stmt).scalars().all()
-    return payments
+    return payments[0]
 
 def update_future_credit_payment(payment: CreditPayment):
     """Update a future credit payment entry in the database"""
