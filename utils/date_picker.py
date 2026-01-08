@@ -1,58 +1,7 @@
-
-
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-from utils.config import Settings
-
-emoji = Settings.emoji
-
-class ButtonBuilder:
-    """Helper class for building dynamic keyboards"""
-    
-    @staticmethod
-    def create_grid(items,  callback_prefix='item', emoji_map=None):
-        """Create a grid of buttons"""
-        keyboard = []
-        
-        for i, item in enumerate(items):
-            emoji = emoji_map.get(item, '') if emoji_map else ''
-            text = f"{emoji} {str(item).capitalize()}" if emoji else str(item).capitalize()
-            callback = f'{callback_prefix}_{item}'
-            
-            keyboard.append(InlineKeyboardButton(text, callback_data=callback))
-            
-            
-        
-        return InlineKeyboardMarkup(keyboard)
-    
-    @staticmethod
-    def add_new_button(keyboard):
-        """Add new button to keyboard"""
-        keyboard.append([
-            InlineKeyboardButton(f"{emoji('NEW')} New", callback_data='new')
-        ])
-        return keyboard
-
-    @staticmethod
-    def add_back_button(keyboard):
-        """Add back button to keyboard"""
-        keyboard.append([
-            InlineKeyboardButton(f"{emoji('BACK')} Back", callback_data='back')
-        ])
-        return keyboard
-    
-
-    @staticmethod
-    def add_cancel_button(keyboard):
-        """Add cancel button to keyboard"""
-        keyboard.append([
-            InlineKeyboardButton(f"{emoji('CANCEL')} Cancel", callback_data='cancel')
-        ])
-        return keyboard
-
-
 from datetime import datetime
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 import calendar
+
 
 class DatePickerKeyboard:
     """Create date picker keyboards with year, month, and day selection"""
@@ -146,3 +95,78 @@ class DatePickerKeyboard:
         ])
         
         return InlineKeyboardMarkup(keyboard)
+    
+    @staticmethod
+    def format_date(year, month, day):
+        """Format the selected date as YYYY-MM-DD"""
+        return f"{year}-{month}-{day}"
+
+
+# Example usage functions
+async def ask_for_date(update, context, message="Please select a date:"):
+    """Start date selection process"""
+    keyboard = DatePickerKeyboard.get_year_keyboard()
+    await update.message.reply_text(message, reply_markup=keyboard)
+
+
+async def handle_date_callback(update, context):
+    """Handle date picker callbacks"""
+    query = update.callback_query
+    await query.answer()
+    
+    data = query.data
+    
+    if data.startswith("year_"):
+        # Year selected, show months
+        year = data.split("_")[1]
+        context.user_data['selected_year'] = year
+        keyboard = DatePickerKeyboard.get_month_keyboard(year)
+        await query.edit_message_text(
+            f"Year: {year}\nSelect month:",
+            reply_markup=keyboard
+        )
+    
+    elif data.startswith("month_"):
+        # Month selected, show days
+        parts = data.split("_")
+        year = parts[1]
+        month = parts[2]
+        context.user_data['selected_month'] = month
+        keyboard = DatePickerKeyboard.get_day_keyboard(year, month)
+        await query.edit_message_text(
+            f"Year: {year}, Month: {month}\nSelect day:",
+            reply_markup=keyboard
+        )
+    
+    elif data.startswith("day_"):
+        # Day selected, date is complete
+        parts = data.split("_")
+        year = parts[1]
+        month = parts[2]
+        day = parts[3]
+        selected_date = DatePickerKeyboard.format_date(year, month, day)
+        
+        await query.edit_message_text(f"✅ Selected date: {selected_date}")
+        
+        # Store the date in context or process it
+        context.user_data['selected_date'] = selected_date
+        
+        # Return the date or trigger next action
+        return selected_date
+    
+    elif data == "date_back_year":
+        # Go back to year selection
+        keyboard = DatePickerKeyboard.get_year_keyboard()
+        await query.edit_message_text("Select year:", reply_markup=keyboard)
+    
+    elif data.startswith("date_back_month_"):
+        # Go back to month selection
+        year = data.split("_")[3]
+        keyboard = DatePickerKeyboard.get_month_keyboard(year)
+        await query.edit_message_text(
+            f"Year: {year}\nSelect month:",
+            reply_markup=keyboard
+        )
+    
+    elif data == "date_cancel":
+        await query.edit_message_text("❌ Date selection cancelled.")

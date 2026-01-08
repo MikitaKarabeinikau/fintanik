@@ -15,6 +15,23 @@ from dotenv import load_dotenv
 from commands.transaction import WAITING_FOR_AMOUNT, WAITING_FOR_AMOUNT_UPDATE, WAITING_FOR_CATEGORY, WAITING_FOR_CATEGORY_UPDATE, WAITING_FOR_DATE, WAITING_FOR_DATE_UPDATE, WAITING_FOR_NAME, WAITING_FOR_NAME_UPDATE, WAITING_FOR_SHOP_NAME, WAITING_FOR_SHOP_NAME_UPDATE, handle_updating_field, receive_amount, receive_category, receive_date, receive_name, receive_shop_name, start_transaction, update_amount, update_category, update_date, update_name, update_shop_name
 from database import db
 from database.models import User, Transaction
+from menus.credit_menu import (
+    FETCH_CATEGORY, 
+    FETCH_END_DATE, 
+    FETCH_LAST_PAYMENT, 
+    FETCH_LENDER_NAME, 
+    FETCH_MONTHLY_PAYMENT, 
+    FETCH_START_DATE, 
+    FETCH_TOTAL_AMOUNT, 
+    receive_category as receive_credit_category,
+    receive_end_date, 
+    receive_last_payment, 
+    receive_lender_name, 
+    receive_monthly_payment, 
+    receive_start_date, 
+    receive_total_amount, 
+    start_credit_flow
+)
 from utils.utils import parse_date_range
 from menus.main_menu import handle_main_menu_button
 from utils.decorators import is_authenticated
@@ -23,7 +40,7 @@ from commands.help import help_command
 from commands.logout import logout_command
 from utils.auth import check_password
 from utils.config import Settings
-
+from menus.credit_menu import handle_credit_date_callback
 
 # Load environment variables
 load_dotenv()
@@ -81,7 +98,26 @@ def main():
         fallbacks=[CommandHandler("cancel", cancel_command)],
     )
 
-  
+    credit_conv = ConversationHandler(
+        entry_points=[MessageHandler(filters.Regex(f'^{emoji("NEW")} Add Credit/Loan$'),start_credit_flow)],
+        states={
+            FETCH_TOTAL_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_total_amount)],
+            FETCH_CATEGORY: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_credit_category)],
+            FETCH_LENDER_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_lender_name)],
+            FETCH_START_DATE: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, receive_start_date),
+                CallbackQueryHandler(handle_credit_date_callback, pattern="^(year_|month_|day_|date_)")
+            ],
+            FETCH_END_DATE: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, receive_end_date),
+                CallbackQueryHandler(handle_credit_date_callback, pattern="^(year_|month_|day_|date_)")
+            ],
+            FETCH_MONTHLY_PAYMENT: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_monthly_payment)],
+            FETCH_LAST_PAYMENT: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_last_payment)],
+        },
+        fallbacks=[CommandHandler('cancel', cancel_command)],
+    )
+
     transaction_conv = ConversationHandler(
     entry_points=[
         MessageHandler(filters.Regex(f'^{emoji("NEW")} Add Transaction$'),start_transaction)
@@ -134,6 +170,7 @@ def main():
 
     # Add handlers
     application.add_handler(conv_handler)
+    application.add_handler(credit_conv)
     application.add_handler(CommandHandler('help', help_command))
     application.add_handler(CommandHandler('logout', logout_command))
     application.add_handler(update_transaction_conv)

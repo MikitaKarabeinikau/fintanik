@@ -89,21 +89,9 @@ def transaction_flow_info(context: ContextTypes.DEFAULT_TYPE):
 
 async def transaction_flow(update: Update, context: ContextTypes.DEFAULT_TYPE, action_key: str, transaction, skip_field=None):
     from menus.spendings_menu import get_spendings_menu
-    if action_key == 'amount':
+    if action_key:
         await update.message.reply_text(f"📝 Current Transaction Info:\n{transaction_flow_info(context)}")
-        return await ask_for(update, context, transaction, 'amount')
-    elif action_key == 'name':
-        await update.message.reply_text(f"📝 Current Transaction Info:\n{transaction_flow_info(context)}")
-        return await ask_for(update, context, transaction, 'name')
-    elif action_key == 'category':
-        await update.message.reply_text(f"📝 Current Transaction Info:\n{transaction_flow_info(context)}")
-        return await ask_for(update, context, transaction, 'category')
-    elif action_key == 'shop':
-        await update.message.reply_text(f"📝 Current Transaction Info:\n{transaction_flow_info(context)}")
-        return await ask_for(update, context, transaction, 'shop')
-    elif action_key == 'date':
-        await update.message.reply_text(f"📝 Current Transaction Info:\n{transaction_flow_info(context)}")
-        return await ask_for(update, context, transaction, 'date')
+        return await ask_for(update, context, transaction, action_key)
     elif action_key is None:
         # Save transaction to DB
         create_transaction( update.effective_user.id,
@@ -240,12 +228,15 @@ def get_updating_field_menu():
     ]
     return ReplyKeyboardMarkup(updating_field_keyboard, resize_keyboard=True)
 
-def get_update_list_menu(update: Update,context: ContextTypes.DEFAULT_TYPE):
+def get_update_list_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     update_list_keyboard = []
-    start, end = parse_date_range(update = update, context = context,text = context.user_data.get('selected_date_range'))
+    start, end = parse_date_range(update=update, context=context, text=context.user_data.get('selected_date_range'))
     transaction_list = get_spendings(start_date=start, end_date=end)
     for row in transaction_list:
-        button_text = f"{row.id} {row.name} {row.amount} {row.shop} {row.category} {row.date}"
+        # Format date as string without spaces
+        date_str = row.date.strftime("%Y-%m-%d") if row.date else "N/A"
+        # Use | as separator
+        button_text = f"{row.id}|{row.name or 'Unnamed'}|{row.amount}|{row.shop or 'N/A'}|{row.category or 'N/A'}|{date_str}"
         update_list_keyboard.append([KeyboardButton(button_text)])
     update_list_keyboard.append([KeyboardButton(f"{emoji('BACK')} BACK")])
     return ReplyKeyboardMarkup(update_list_keyboard, resize_keyboard=True)
@@ -296,31 +287,37 @@ async def handle_transaction_to_update(update: Update, context: ContextTypes.DEF
         return
 
     try:
-        data = text.split()
+        # Split by | instead of space
+        data = text.split('|')
         transaction_id = int(data[0])
         name = data[1]
         amount = float(data[2])
         shop = data[3]
         category = data[4]
+        date_str = data[5]
+        
         transaction_to_update = {
             'id': transaction_id,
             'amount': amount,
             'name': name,
             'shop': shop,
-            'category': category
+            'category': category,
+            'date': date_str
         }
         context.user_data['transaction'] = transaction_to_update  
 
         context.user_data['selecting_update_field'] = True  
         context.user_data.pop('update_transaction', None)
         await update.message.reply_text(
-            "Select the field you want to update:",
+            f"📝 Transaction selected:\n{await updating_info(context)}\n\nSelect the field you want to update:",
             reply_markup=get_updating_field_menu()
         )
-    except (ValueError, IndexError):
+    except (ValueError, IndexError) as e:
+        print(f"DEBUG: Parse error: {e}")
+        print(f"DEBUG: text='{text}'")
         await update.message.reply_text(
             "❌ Invalid selection. Please choose a valid transaction from the list.",
-            reply_markup=get_updating_field_menu()
+            reply_markup=get_update_list_menu(update=update, context=context)
         )
 
 async def handle_updating_field(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -455,7 +452,8 @@ async def ask_for_update_field(update: Update, context: ContextTypes.DEFAULT_TYP
         return WAITING_FOR_DATE_UPDATE
     
 async def updating_info(context: ContextTypes.DEFAULT_TYPE):
-    return f'Amount: {context.user_data["transaction"].get("amount")}\n' \
-           f'Name: {context.user_data["transaction"].get("name")}\n' \
-           f'Category: {context.user_data["transaction"].get("category")}\n' \
-           f'Shop: {context.user_data["transaction"].get("shop")}\n'
+    transaction = context.user_data.get('transaction', {})
+    return f'Amount: {transaction.get("amount", "N/A")}\n' \
+           f'Name: {transaction.get("name", "N/A")}\n' \
+           f'Category: {transaction.get("category", "N/A")}\n' \
+           f'Shop: {transaction.get("shop", "N/A")}\n'

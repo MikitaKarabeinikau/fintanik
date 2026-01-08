@@ -53,3 +53,23 @@ class Budget(Base):
     
     def __repr__(self):
         return f"<Budget(user_id={self.user_id}, category={self.category}, amount={self.amount})>"
+    
+class Credit(Base):
+    __tablename__ = 'credits'
+    
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.telegram_id'), nullable=False)
+    category = Column(String(255), nullable=True, default="Credit")
+    lender_name = Column(String(255), nullable=False)
+    total_amount = Column(Float, nullable=False)  # Store in cents
+    monthly_payment = Column(Float, nullable=False)  # Store in cents
+    date = Column(DateTime, default=datetime.utcnow)
+    start_date = Column(DateTime, nullable=False)
+    end_date = Column(DateTime, nullable=False)
+    last_payment_amount = Column(Float, nullable=False)  # Store in cents
+    paid = Column(Boolean, default=False)
+
+    user = relationship("User", backref="credits")
+    
+    def __repr__(self):
+        return f"<Credit(user_id={self.user_id}, lender_name={self.lender_name}, total={self.total})>"

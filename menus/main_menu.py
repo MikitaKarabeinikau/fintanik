@@ -1,5 +1,6 @@
 from telegram import ReplyKeyboardMarkup, KeyboardButton, Update
 from telegram.ext import ContextTypes
+from menus.credit_menu import handle_credit_menu
 from utils.decorators import is_authenticated
 from utils.config import Settings
 
@@ -11,11 +12,10 @@ def get_main_menu():
 
     keyboard = [
         [KeyboardButton('SPENDINGS')],
-        [KeyboardButton(f'SAVINGS')],
         [KeyboardButton(f"BUDGETS")],
+        [KeyboardButton(f'SAVINGS')],
+        [KeyboardButton(f'CREDITS')],
         [KeyboardButton(f"EARNINGS")],
-        [KeyboardButton(f'{emoji("SETTINGS")} SETTINGS')],
-        [KeyboardButton(f'{emoji("HELP")} HELP')],
         [KeyboardButton(f"{emoji('LOGOUT')} Logout")],
         
     ]
@@ -29,7 +29,8 @@ async def handle_main_menu_button(update: Update, context: ContextTypes.DEFAULT_
 
     """Handle main menu button clicks"""
     text = update.message.text
-    print(f"DEBUG main_menu: text='{text}', flags={context.user_data.keys()}")  # Add this
+    print(f"DEBUG main_menu: text='{text}', flags={context.user_data.keys()}")
+    print(f"🔍 MAIN_MENU: All flags={context.user_data}")  # Show ALL flags
     if text == f"{emoji('STATS')} View Statistics":
         from menus.account_view import view_menu  
         context.user_data['viewing_stats'] = True  # Set flag
@@ -47,6 +48,12 @@ async def handle_main_menu_button(update: Update, context: ContextTypes.DEFAULT_
     if context.user_data.get('date_range_updating'):
         print(f"🔍 MAIN_MENU: date_range_updating flag detected! Calling handle_transaction_range")
         return await handle_transaction_range(update, context)
+    if context.user_data.get('update_transaction'):
+        return await handle_transaction_to_update(update, context)
+    if context.user_data.get('selecting_update_field'):
+        from commands.transaction import handle_updating_field
+        return await handle_updating_field(update, context)
+    
     if context.user_data.get('viewing_stats'):
         from menus.account_view import view_menu
         return await view_menu.handle_date_selection(update, context)
@@ -60,12 +67,8 @@ async def handle_main_menu_button(update: Update, context: ContextTypes.DEFAULT_
         from menus.account_view.delete_transaction_menu import handle_transaction_to_delete
         return await handle_transaction_to_delete(update, context)
  
-    if context.user_data.get('selecting_update_field'):
-        from commands.transaction import handle_updating_field
-        return await handle_updating_field(update, context)
-    
-    if context.user_data.get('update_transaction'):
-        return await handle_transaction_to_update(update, context)
+
+
 
     if text.startswith(f"{emoji('MONEY')}") :
         from menus.spendings_menu import handle_spendings_menu
@@ -74,15 +77,22 @@ async def handle_main_menu_button(update: Update, context: ContextTypes.DEFAULT_
 
     elif text == 'SPENDINGS':
         from menus.spendings_menu import handle_spendings_menu
+        context.user_data.pop('in_budget_menu', None)
         return await handle_spendings_menu(update, context)
     # Handle all spendings menu buttons TODO: v2.0.0 Refactor into separate handler
+
     elif text in [f"{emoji('NEW')} Add Transaction", 
                 f"{emoji('UPDATE')} Update Transaction",
                 f"{emoji('DELETE')} Delete Transaction",
-                f"{emoji('INVITE')} Invite User"]:
+                f"{emoji('STATS')} View Statistics"]:
         from menus.spendings_menu import handle_spendings_menu
+        context.user_data.pop('in_budget_menu', None)  # ADD THIS
         return await handle_spendings_menu(update, context)
 
+    elif text == 'CREDITS':
+        from menus.credit_menu import handle_credit_menu
+        context.user_data['in_credits_menu'] = True
+        return await handle_credit_menu(update, context)
 
     elif text == 'SAVINGS':
         update.message.reply_text("💰 Savings feature coming soon!")
@@ -92,10 +102,20 @@ async def handle_main_menu_button(update: Update, context: ContextTypes.DEFAULT_
         context.user_data['in_budget_menu'] = True
         return await handle_budget_menu(update, context)
     
-    elif context.user_data.get('in_budget_menu'):
+
+    elif context.user_data.get('in_budget_menu') or \
+        context.user_data.get('selecting_budget_range') or \
+        context.user_data.get('selecting_budget_category') or \
+        context.user_data.get('typing_new_category') or \
+        context.user_data.get('waiting_for_budget_amount') or \
+        context.user_data.get('updating_budget') or \
+        context.user_data.get('selecting_budget_category_for_update') or \
+        context.user_data.get('waiting_for_budget_amount_update') or \
+        context.user_data.get('deleting_budgets') or \
+        context.user_data.get('selecting_budget_category_to_delete'):
         from menus.budget_menu import handle_budget_menu
         return await handle_budget_menu(update, context)
-
+    
     elif text == 'EARNINGS':
         update.message.reply_text("💵 Earnings feature coming soon!")
         return
