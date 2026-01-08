@@ -73,3 +73,17 @@ class Credit(Base):
     
     def __repr__(self):
         return f"<Credit(user_id={self.user_id}, lender_name={self.lender_name}, total={self.total})>"
+    
+class CreditPayment(Base):
+    __tablename__ = 'credit_payments'
+    
+    id = Column(Integer, primary_key=True)
+    credit_id = Column(Integer, ForeignKey('credits.id'), nullable=False)
+    payment_date = Column(DateTime, default=datetime.utcnow)
+    amount = Column(Float, nullable=False)  # Store in cents
+    status = Column(Boolean, default=False)  # e.g., pending, paid
+    
+    credit = relationship("Credit", backref="payments")
+    
+    def __repr__(self):
+        return f"<CreditPayment(credit_id={self.credit_id}, amount={self.amount})>"

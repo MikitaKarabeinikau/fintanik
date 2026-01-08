@@ -1,91 +1,213 @@
-from sqlalchemy import update, select
-from database.db import get_session
+from sqlalchemy import func, update, select, case
+from database import db
 from database.models import Credit
 from sqlalchemy.orm import Session
 from datetime import datetime
 from utils.config import Settings
-from database.credit.crud import create_credit, update_credit_payment
+from database.credit_payment.crud import create_credit_payment
 logger = Settings.LOGGER
+from database.models import CreditPayment
 
-
-def get_last_credit_transaction(credit_id: int) -> Credit:
-    """Retrieve the last credit transaction for a given credit ID"""
+def fill_credit_payments(credit: Credit):
+    """Fill in future credit payments based on the credit details"""
+    session = db.get_session()
     try:
-        session = get_session()
-        stmt = select(Credit).where(Credit.id == credit_id).order_by(Credit.date.desc()).limit(1)
-        result = session.execute(stmt).scalar_one_or_none()
-        logger.debug(f"Retrieved last credit transaction for credit_id {credit_id}: {result}")
-        return result
-    except Exception as e:
-        logger.error(f"Error retrieving last credit transaction for credit_id {credit_id}: {e}")
-        raise
-
-
-
-def fill_credit_due_last_payment_dates(credit_id: int):
-    """Fill in missing last payment dates for credits"""
-    try:
-        session = get_session()
-        last_record = get_last_credit_transaction(credit_id)
-        last_record_date = last_record.last_payment_date
-        last_payment_date = last_record.last_payment_date
-        logger.debug(f"Filling last payment date for credit_id {credit_id} with date {last_record_date}")
-        while last_record_date.year <= last_payment_date.year and last_record_date.month+1 < last_payment_date.month:
-            if last_record_date.month == 12:
-                last_record_date = datetime(last_record_date.year + 1, 1, last_record_date.day)
-            else:
-                last_record_date = datetime(last_record_date.year, last_record_date.month + 1, last_record_date.day)
-            logger.debug(f"Creating credit entry for missing payment date: {last_record_date}")
-            create_credit(
-                user_id=last_record.user_id,
-                lender_name=last_record.lender_name,
-                total=last_record.total-last_record.monthly_payment,
-                date = last_record_date,
-                monthly_payment=last_record.monthly_payment,
-                last_payment_date=last_record_date,
-                category=last_record.category,
-                last_payment_amount=last_record.last_payment_amount,
-                paid=False
+        payment_date = credit.start_date
+        
+        while payment_date < credit.end_date:  # Changed <= to < so we handle end_date separately
+            new_payment = create_credit_payment(
+                credit_id=credit.id,
+                payment_date=payment_date,
+                amount=credit.monthly_payment
             )
-        create_credit(
-            user_id=last_record.user_id,
-            lender_name=last_record.lender_name,
-            total=0.0,
-            date = last_payment_date,
-            monthly_payment=last_record.last_payment_amount,
-            last_payment_date=last_payment_date,
-            category=last_record.category,
-            last_payment_amount=last_record.last_payment_amount,
-            paid=False)
-        logger.debug(f"Completed filling last payment dates for credit_id {credit_id}")
+            session.add(new_payment)
+            
+            # Move to next month
+            if payment_date.month == 12:
+                payment_date = payment_date.replace(year=payment_date.year + 1, month=1)
+            else:
+                payment_date = payment_date.replace(month=payment_date.month + 1)
+        
+        # Create final payment on end_date with last_payment_amount
+        final_payment = create_credit_payment(
+            credit_id=credit.id,
+            payment_date=credit.end_date,
+            amount=credit.last_payment_amount
+        )
+        session.add(final_payment)
+        
+        session.commit()
+        logger.info(f"Successfully created {payment_date} payments for credit ID {credit.id}")
     except Exception as e:
-        logger.error(f"Error filling last payment dates for credit_id {credit_id}: {e}")
+        logger.error(f"Error filling credit payments for credit ID {credit.id}: {e}")
+        session.rollback()
         raise
 
-def pay_monthly_credit_standart(credit_id:int):
+def get_unpaid_credit_payments_dict():
+    """Get unpaid credit payments as list of dictionaries"""
+    session = db.get_session()
     try:
-        session = get_session()
-        stmt = select(Credit).where(Credit.id == credit_id, Credit.paid == False).order_by(Credit.date.asc()).limit(1)
-        credit = session.execute(stmt).scalar_one_or_none()
-        if credit:
-            credit.paid = True
-            update_credit_payment(credit)
-            logger.debug(f"Marked credit_id {credit_id} as paid for date {credit.date}")
-            return credit
-        else:
-            logger.debug(f"No unpaid credit found for credit_id {credit_id}")
-            return None
+        # Using DISTINCT ON (PostgreSQL)
+        stmt = select(
+            Credit.lender_name,
+            Credit.category,
+            CreditPayment.amount,
+            CreditPayment.payment_date,
+            CreditPayment.credit_id
+        ).join(
+            CreditPayment,
+            Credit.id == CreditPayment.credit_id
+        ).where(
+            CreditPayment.status == False
+        ).distinct(
+            CreditPayment.credit_id
+        ).order_by(
+            CreditPayment.credit_id,
+            CreditPayment.payment_date.asc()
+        )
+        results = session.execute(stmt).all()
+        
+        # Convert to list of dictionaries
+        payments = []
+        for row in results:
+            payments.append({
+                'lender_name': row.lender_name,
+                'category': row.category,
+                'amount': row.amount,
+                'payment_date': row.payment_date
+            })
+        
+        return payments
     except Exception as e:
-        logger.error(f"Error marking credit_id {credit_id} as paid: {e}")
+        logger.error(f"Error getting unpaid credit payments: {e}")
         raise
 
-def pay_monthly_credit_advanced(credit_id:int, payment_amount: float):
+def get_credit_statistics():
+    """Get comprehensive statistics about all credits"""
+    from database.models import Credit, CreditPayment
+    from sqlalchemy import func
+    
+    session = db.get_session()
     try:
-        session = get_session()
-        stmt = select(Credit).where(Credit.id == credit_id, Credit.paid == False).order_by(Credit.date.asc())
-        credit = session.execute(stmt).scalar_one_or_none()
-        for record in credit:
-            if payment_amount <= record.monthly_payment:
-                record.p
-                payment_amount -= record.monthly_payment
-                logger.debug(f"Marked credit_id {credit_id} as paid for date {record.date} with amount {record.monthly_payment}")
+        # Get all credits with calculated statistics
+        stmt = select(
+            Credit.id,
+            Credit.lender_name,
+            Credit.category,
+            Credit.total_amount,
+            Credit.monthly_payment,
+            Credit.start_date,
+            Credit.end_date,
+            Credit.last_payment_amount,
+            # Count total payments
+            func.count(CreditPayment.id).label('total_payments'),
+            # Count paid payments
+            func.sum(case(
+                (CreditPayment.status == True, 1),
+                else_=0
+            )).label('paid_payments'),
+            # Sum of paid amounts
+            func.sum(case(
+                (CreditPayment.status == True, CreditPayment.amount),
+                else_=0
+            )).label('total_paid'),
+            # Sum of remaining payments
+            func.sum(case(
+                (CreditPayment.status == False, CreditPayment.amount),
+                else_=0
+            )).label('remaining_amount'),
+            # Next payment date (earliest unpaid)
+            func.min(case(
+                (CreditPayment.status == False, CreditPayment.payment_date),
+                else_=None
+            )).label('next_payment_date')
+        ).outerjoin(
+            CreditPayment,
+            Credit.id == CreditPayment.credit_id
+        ).group_by(
+            Credit.id,
+            Credit.lender_name,
+            Credit.category,
+            Credit.total_amount,
+            Credit.monthly_payment,
+            Credit.start_date,
+            Credit.end_date,
+            Credit.last_payment_amount
+        ).order_by(
+            Credit.lender_name
+        )
+        
+        results = session.execute(stmt).all()
+        
+        # Convert to list of dictionaries
+        statistics = []
+        for row in results:
+            statistics.append({
+                'id': row.id,
+                'lender_name': row.lender_name,
+                'category': row.category,
+                'total_amount': row.total_amount,
+                'monthly_payment': row.monthly_payment,
+                'start_date': row.start_date,
+                'end_date': row.end_date,
+                'last_payment_amount': row.last_payment_amount,
+                'total_payments': row.total_payments or 0,
+                'paid_payments': row.paid_payments or 0,
+                'total_paid': row.total_paid or 0.0,
+                'remaining_amount': row.remaining_amount or 0.0,
+                'next_payment_date': row.next_payment_date,
+                'progress_percent': (row.paid_payments / row.total_payments * 100) if row.total_payments else 0
+            })
+        
+        return statistics
+    except Exception as e:
+        logger.error(f"Error getting credit statistics: {e}")
+        raise
+    finally:
+        session.close()
+
+
+def get_overall_credit_summary():
+    """Get overall summary of all credits"""
+    from database.models import Credit, CreditPayment
+    from sqlalchemy import func
+    
+    session = db.get_session()
+    try:
+        # Get total credits and total borrowed WITHOUT joining payments
+        credit_summary = session.execute(
+            select(
+                func.count(Credit.id).label('total_credits'),
+                func.sum(Credit.total_amount).label('total_borrowed')
+            )
+        ).one()
+        
+        # Get payment totals separately
+        payment_summary = session.execute(
+            select(
+                func.sum(case(
+                    (CreditPayment.status == True, CreditPayment.amount),
+                    else_=0
+                )).label('total_paid'),
+                func.sum(case(
+                    (CreditPayment.status == False, CreditPayment.amount),
+                    else_=0
+                )).label('total_remaining')
+            )
+        ).one()
+        
+        total_borrowed = credit_summary.total_borrowed or 0.0
+        total_paid = payment_summary.total_paid or 0.0
+        
+        return {
+            'total_credits': credit_summary.total_credits or 0,
+            'total_borrowed': total_borrowed,
+            'total_paid': total_paid,
+            'total_remaining': payment_summary.total_remaining or 0.0,
+            'progress_percent': (total_paid / total_borrowed * 100) if total_borrowed else 0
+        }
+    except Exception as e:
+        logger.error(f"Error getting overall credit summary: {e}")
+        raise
+    finally:
+        session.close()

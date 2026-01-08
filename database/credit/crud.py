@@ -3,6 +3,9 @@ from database import db
 from database.models import Credit
 from sqlalchemy.orm import Session
 from datetime import datetime
+from utils.config import Settings
+
+logger = Settings.LOGGER
 
 def create_credit(user_id: int,
                   lender_name: str,
@@ -48,3 +51,34 @@ def update_credit_payment(credit: Credit):
         session.refresh(existing_credit)
     return existing_credit
 
+def get_credits() -> list[Credit]:
+    """Retrieve all credit entries from the database"""
+    session = db.get_session()
+    stmt = select(Credit)
+    credits = session.execute(stmt).scalars().all()
+    return credits
+
+def delete_credit(credit_id: int) -> bool:
+    """Delete a credit entry and all its payments from the database"""
+    from database.models import CreditPayment
+    session = db.get_session()
+    try:
+        # First, delete all related credit payments
+        stmt_payments = select(CreditPayment).filter(CreditPayment.credit_id == credit_id)
+        payments = session.execute(stmt_payments).scalars().all()
+        for payment in payments:
+            session.delete(payment)
+        
+        # Then delete the credit
+        stmt_credit = select(Credit).filter(Credit.id == credit_id)
+        credit_to_delete = session.execute(stmt_credit).scalar_one_or_none()
+        if credit_to_delete:
+            session.delete(credit_to_delete)
+            session.commit()
+            logger.info(f"Deleted credit {credit_id} and {len(payments)} related payments")
+            return True
+        return False
+    except Exception as e:
+        session.rollback()
+        logger.error(f"Error deleting credit {credit_id}: {e}")
+        raise

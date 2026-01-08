@@ -102,6 +102,14 @@ async def handle_main_menu_button(update: Update, context: ContextTypes.DEFAULT_
         context.user_data['in_budget_menu'] = True
         return await handle_budget_menu(update, context)
     
+    elif context.user_data.get('delete_credit'):
+        from menus.credit_menu import handle_credit_menu
+        return await handle_credit_menu(update, context)
+
+    # Add this new check after delete_credit
+    elif context.user_data.get('in_credits_menu'):
+        from menus.credit_menu import handle_credit_menu
+        return await handle_credit_menu(update, context)
 
     elif context.user_data.get('in_budget_menu') or \
         context.user_data.get('selecting_budget_range') or \
