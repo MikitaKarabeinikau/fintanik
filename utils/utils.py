@@ -63,27 +63,26 @@ def view_statistics_all(period, transactions):
     total = sum(t.amount for t in transactions)
     
     # Find max lengths for dynamic sizing
-    max_category = max((len(t.category or "N/A") for t in transactions), default=8)
-    max_category = min(max_category, 15)  # Cap at 15
     max_name = max((len(t.name or "Unnamed") for t in transactions), default=10)
-    max_name = min(max_name, 15)  # Cap at 15
+    max_name = min(max_name, 20)  # Cap at 20
+    max_category = max((len(t.category or "N/A") for t in transactions), default=10)
+    max_category = min(max_category, 15)  # Cap at 15
     
     # Header
     lines = [f"📅 {period}\n"]
-    lines.append(f"{'Date':<12} {'Amount':>8} {'Category':<{max_category}} {'Name':<{max_name}}")
-    lines.append("-" * (12 + 8 + max_category + max_name + 6))
+    lines.append(f"{'Name':<{max_name}} {'Category':<{max_category}} {'Amount':>10}")
+    lines.append("-" * (max_name + max_category + 10 + 4))
     
     # Transactions
     for t in transactions:
-        date_str = t.date.strftime("%Y-%m-%d") if t.date else "N/A"
         name = (t.name or 'Unnamed')[:max_name]
         category = (t.category or "N/A")[:max_category]
         
-        lines.append(f"{date_str:<12} {t.amount:>8.2f} {category:<{max_category}} {name:<{max_name}}")
+        lines.append(f"{name:<{max_name}} {category:<{max_category}} {t.amount:>8.2f} zl")
     
     # Footer
-    lines.append("-" * (12 + 8 + max_category + max_name + 6))
-    lines.append(f"{'TOTAL':<12} {total:>8.2f}")
+    lines.append("-" * (max_name + max_category + 10 + 4))
+    lines.append(f"{'TOTAL':<{max_name}} {'':<{max_category}} {total:>8.2f} zl")
     lines.append(f"\n📈 Total: {len(transactions)} transactions")
     
     return "\n".join(lines)
