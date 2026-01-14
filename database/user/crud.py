@@ -17,13 +17,8 @@ def get_user_by_telegram_id(telegram_id: int):
         session.close()
 
 def get_all_users():
-    """Retrieve all users from the database"""
+    """Get all users from database"""
+    from database import db
+    from database.models import User
     session = db.get_session()
-    try:
-        users = session.query(User.telegram_id).all()
-        return users
-    except Exception as e:
-        logger.error(f"Error retrieving all users: {e}")
-        raise
-    finally:
-        session.close()
+    return session.query(User).all()

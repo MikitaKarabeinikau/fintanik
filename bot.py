@@ -41,6 +41,7 @@ from commands.logout import logout_command
 from utils.auth import check_password
 from utils.config import Settings
 from menus.credit_menu import handle_credit_date_callback
+from utils.scheduler import setup_scheduler
 
 # Load environment variables
 load_dotenv()
@@ -88,6 +89,9 @@ def main():
     
     # Create application
     application = Application.builder().token(token).post_init(post_init).build()
+
+    #Scheduler setup
+    scheduler = setup_scheduler(application)
     
     # Create conversation handler for authentication
     conv_handler = ConversationHandler(
