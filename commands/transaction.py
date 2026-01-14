@@ -171,6 +171,10 @@ async def receive_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if text.upper() == "TODAY":
         today = datetime.datetime.now()
         context.user_data['transaction']['date'] = today
+    elif text == f"{emoji('BACK')} Back":
+        prev = transaction_actions['date']['prev']
+        context.user_data['transaction'][prev] = None
+        return await transaction_flow(update, context, action_key=prev, transaction=context.user_data['transaction'])
     else:
         try:
             date_obj = datetime.datetime.strptime(text, "%Y-%m-%d")
