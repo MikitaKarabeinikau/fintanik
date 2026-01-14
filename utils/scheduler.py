@@ -1,15 +1,14 @@
-from datetime import datetime, time, timedelta
+from datetime import datetime, time
 from telegram.ext import Application
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from database.user.crud import get_all_users
-from database.transactions.services import get_transactions_by_date_range
+from database.transactions.services import get_spendings
 from utils.utils import view_statistics_all
 from utils.config import Settings
 import logging
 
 logger = Settings.LOGGER
-
 
 async def send_daily_stats(app: Application):
     """Send daily statistics to all users at end of day"""
@@ -22,7 +21,7 @@ async def send_daily_stats(app: Application):
     
     for user in users:
         try:
-            transactions = get_transactions_by_date_range(user.telegram_id, start, end)
+            transactions = get_spendings(start, end)
             if transactions:
                 message = view_statistics_all("📊 Daily Report - TODAY", transactions)
                 await app.bot.send_message(
@@ -47,7 +46,7 @@ async def send_weekly_stats(app: Application):
     
     for user in users:
         try:
-            transactions = get_transactions_by_date_range(user.telegram_id, start, end)
+            transactions = get_spendings(start, end)
             if transactions:
                 message = view_statistics_all("📊 Weekly Report - THIS WEEK", transactions)
                 await app.bot.send_message(
@@ -72,7 +71,7 @@ async def send_monthly_stats(app: Application):
     
     for user in users:
         try:
-            transactions = get_transactions_by_date_range(user.telegram_id, start, end)
+            transactions = get_spendings(start, end)
             if transactions:
                 message = view_statistics_all("📊 Monthly Report - THIS MONTH", transactions)
                 await app.bot.send_message(
@@ -97,7 +96,7 @@ async def send_yearly_stats(app: Application):
     
     for user in users:
         try:
-            transactions = get_transactions_by_date_range(user.telegram_id, start, end)
+            transactions =  get_spendings(user.telegram_id, start, end)
             if transactions:
                 message = view_statistics_all("📊 Yearly Report - THIS YEAR", transactions)
                 await app.bot.send_message(

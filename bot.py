@@ -41,7 +41,6 @@ from commands.logout import logout_command
 from utils.auth import check_password
 from utils.config import Settings
 from menus.credit_menu import handle_credit_date_callback
-from utils.scheduler import setup_scheduler
 
 # Load environment variables
 load_dotenv()
@@ -64,7 +63,11 @@ async def post_init(application: Application):
         BotCommand("logout", "Logout from your account"),
     ]
     await application.bot.set_my_commands(commands)
-
+    
+    # Start scheduler after bot is initialized
+    from utils.scheduler import setup_scheduler
+    setup_scheduler(application)
+    Settings.LOGGER.info("Scheduler initialized")
 
 
 
@@ -90,9 +93,7 @@ def main():
     # Create application
     application = Application.builder().token(token).post_init(post_init).build()
 
-    #Scheduler setup
-    scheduler = setup_scheduler(application)
-    
+
     # Create conversation handler for authentication
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler("start", start_command)],
