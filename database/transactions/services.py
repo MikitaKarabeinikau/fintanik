@@ -69,6 +69,48 @@ def get_spendings_grouped( group_by: str, start_date: datetime, end_date: dateti
         logger.error(f"Error retrieving grouped spendings by {group_by} between {start_date} and {end_date}: {e}")
         raise
 
+def get_sorted_categories_by_popularity():
+    """Retrieve categories sorted by popularity (number of transactions)"""
+    try:
+        session = db.get_session()
+        stmt = select(
+            Transaction.category,
+            func.count(Transaction.id).label('transaction_count')
+        ).group_by(
+            Transaction.category
+        ).order_by(
+            func.count(Transaction.id).desc()
+        )
+        
+        results = session.execute(stmt).all()
+        logger.debug(f"Sorted categories by popularity: {results}")
+        print(f"DEBUG: Sorted categories results = {results}")
+        result = [category for category, count in results]
+        return result  # Returns list of categories sorted by popularity
+    except Exception as e:
+        logger.error(f"Error retrieving sorted categories by popularity: {e}")
+        raise
+def get_sorted_shops_by_popularity():
+    """Retrieve shops sorted by popularity (number of transactions)"""
+    try:
+        session = db.get_session()
+        stmt = select(
+            Transaction.shop,
+            func.count(Transaction.id).label('transaction_count')
+        ).group_by(
+            Transaction.shop
+        ).order_by(
+            func.count(Transaction.id).desc()
+        )
+        
+        results = session.execute(stmt).all()
+        logger.debug(f"Sorted shops by popularity: {results}")
+        results = [shop for shop, count in results if shop is not None]
+        return results  # Returns list of tuples: [(shop, count), ...]
+    except Exception as e:
+        logger.error(f"Error retrieving sorted shops by popularity: {e}")
+        raise
+
 def get_spendings(start_date: datetime, end_date: datetime):
     """Retrieve spendings for a given account and date range"""
     try:

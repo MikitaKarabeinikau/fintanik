@@ -9,7 +9,7 @@ from menus.account_view.delete_transaction_menu import get_delete_list_menu
 from menus.account_view.view_menu import get_dates_menu
 from utils.decorators import is_authenticated
 from menus.account_view.view_menu import dates_keyboard
-
+from database.transactions.services import get_sorted_categories_by_popularity, get_sorted_shops_by_popularity
 from utils.config import Settings
 from utils.utils import parse_date_range
 WAITING_FOR_AMOUNT = 1 
@@ -37,10 +37,12 @@ skip_keyboard = ReplyKeyboardMarkup(
 def get_categories_keyboard(context: ContextTypes.DEFAULT_TYPE):
     """Create categories keyboard"""
     default_categories = Settings.CATEGORIES
-
-    user_categories = get_all_categories_from_account()
-    print("User categories:", user_categories)
-    categories = list(set(set(default_categories) | set(user_categories)))
+    sorted_categories = get_sorted_categories_by_popularity()
+    print(f"DEBUG: Sorted categories = {sorted_categories}")
+    categories = [cat for cat in sorted_categories]
+    for cat in default_categories:
+        if cat not in categories:
+            categories.append(cat)
     keyboard = [[KeyboardButton(category)] for category in categories]
     keyboard.append([KeyboardButton(f"{emoji('BACK')} Back")])
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
@@ -49,12 +51,12 @@ def get_categories_keyboard(context: ContextTypes.DEFAULT_TYPE):
 def get_shop_keyboard(context: ContextTypes.DEFAULT_TYPE):
     """Create shop keyboard (if needed)"""
 
-    shops = Settings.SHOPS
-    user_shops = get_user_shops_from_account()
-    
-    shops = list(set(shops) | set(user_shops)) 
-    print(f"DEBUG: Union shops = {shops}")
-
+    sorted_user_shops = get_sorted_shops_by_popularity()
+    print(f"DEBUG: Sorted user shops = {sorted_user_shops}")
+    shops = [shop for shop in sorted_user_shops]
+    for shop in Settings.SHOPS:
+        if shop not in shops:
+            shops.append(shop)
     keyboard = [[KeyboardButton(shop)] for shop in shops]
     keyboard.append([KeyboardButton(f"{emoji('BACK')} Back")])
     keyboard.append([KeyboardButton(f"{emoji('SKIP')} Skip")])
