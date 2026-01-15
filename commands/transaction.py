@@ -30,7 +30,7 @@ def get_update_dates_menu():
 emoji = Settings.emoji
 
 skip_keyboard = ReplyKeyboardMarkup(
-    [[KeyboardButton(f"{emoji('SKIP')} Skip")],[KeyboardButton(f"{emoji('BACK')} Back")]],
+    [[KeyboardButton(f"{emoji('SKIP')} Skip")],[KeyboardButton(f"{emoji('BACK')} BACK")]],
     resize_keyboard=True
 )
 
@@ -44,7 +44,7 @@ def get_categories_keyboard(context: ContextTypes.DEFAULT_TYPE):
         if cat not in categories:
             categories.append(cat)
     keyboard = [[KeyboardButton(category)] for category in categories]
-    keyboard.append([KeyboardButton(f"{emoji('BACK')} Back")])
+    keyboard.append([KeyboardButton(f"{emoji('BACK')} BACK")])
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
 
@@ -58,7 +58,7 @@ def get_shop_keyboard(context: ContextTypes.DEFAULT_TYPE):
         if shop not in shops:
             shops.append(shop)
     keyboard = [[KeyboardButton(shop)] for shop in shops]
-    keyboard.append([KeyboardButton(f"{emoji('BACK')} Back")])
+    keyboard.append([KeyboardButton(f"{emoji('BACK')} BACK")])
     keyboard.append([KeyboardButton(f"{emoji('SKIP')} Skip")])
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
@@ -136,7 +136,7 @@ async def receive_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
     if text == f"{emoji('SKIP')} Skip":
         context.user_data['transaction']['name'] = None
-    elif text == f"{emoji('BACK')} Back":
+    elif text == f"{emoji('BACK')} BACK":
         prev = transaction_actions['name']['prev']
         context.user_data['transaction'][prev] = None
         return await transaction_flow(update, context, action_key=prev, transaction=context.user_data['transaction'])
@@ -146,7 +146,7 @@ async def receive_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return await transaction_flow(update, context, action_key=next, transaction=context.user_data['transaction'])
 
 async def receive_category(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.message.text == f"{emoji('BACK')} Back":
+    if update.message.text == f"{emoji('BACK')} BACK":
         prev = transaction_actions['category']['prev']
         context.user_data['transaction'][prev] = None
         return await transaction_flow(update, context, action_key=prev, transaction=context.user_data['transaction'])
@@ -159,7 +159,7 @@ async def receive_shop_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
     if text == f"{emoji('SKIP')} Skip":
         context.user_data['transaction']['shop'] = 'Other'
-    elif text == f"{emoji('BACK')} Back":
+    elif text == f"{emoji('BACK')} BACK":
         prev = transaction_actions['shop']['prev']
         context.user_data['transaction'][prev] = None
         return await transaction_flow(update, context, action_key=prev, transaction=context.user_data['transaction'])
@@ -173,7 +173,7 @@ async def receive_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if text.upper() == "TODAY":
         today = datetime.datetime.now()
         context.user_data['transaction']['date'] = today
-    elif text == f"{emoji('BACK')} Back":
+    elif text == f"{emoji('BACK')} BACK":
         prev = transaction_actions['date']['prev']
         context.user_data['transaction'][prev] = None
         return await transaction_flow(update, context, action_key=prev, transaction=context.user_data['transaction'])
@@ -204,7 +204,7 @@ async def ask_for(update: Update, context: ContextTypes.DEFAULT_TYPE, transactio
         reply_markup = get_shop_keyboard(context)
     elif action_key == 'date':
         reply_markup = ReplyKeyboardMarkup(
-            [[KeyboardButton("TODAY")],[KeyboardButton(f"{emoji('BACK')} Back")]],
+            [[KeyboardButton("TODAY")],[KeyboardButton(f"{emoji('BACK')} BACK")]],
             resize_keyboard=True
         )
     else:
@@ -266,7 +266,7 @@ async def handle_transaction_range(update: Update, context: ContextTypes.DEFAULT
         from menus.spendings_menu import get_spendings_menu
         context.user_data.pop('date_range_updating', None)
         await update.message.reply_text(
-            "Back to account menu",
+            "BACK to account menu",
             reply_markup=get_spendings_menu(update, context)
         )
         return
@@ -287,7 +287,7 @@ async def handle_transaction_to_update(update: Update, context: ContextTypes.DEF
         from menus.spendings_menu import get_spendings_menu
         context.user_data.pop('update_transaction', None)
         await update.message.reply_text(
-            "Back to account menu",
+            "BACK to account menu",
             reply_markup=get_spendings_menu(update, context)
         )
         return
@@ -335,7 +335,7 @@ async def handle_updating_field(update: Update, context: ContextTypes.DEFAULT_TY
     if text == f"{emoji('BACK')} BACK":
         context.user_data.pop('selecting_update_field', None)
         await update.message.reply_text(
-            "Back to account menu",
+            "BACK to account menu",
             reply_markup=get_spendings_menu(update, context)
         )
         return
@@ -372,15 +372,32 @@ async def handle_transaction_range_field(update: Update, context: ContextTypes.D
     return await ask_for_update_field(update, context)
 
 async def update_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data['transaction']['amount'] = float(update.message.text)
-    context.user_data['selecting_update_field'] = True 
-    await update.message.reply_text(
-        f"✅ Amount updated to: {update.message.text}\n\nSelect the next field to update or 'UPDATE TRANSACTION' to save changes.\n {await updating_info(context)}",
-        reply_markup=get_updating_field_menu()
-    )
-    return ConversationHandler.END  #
+    text = update.message.text
+    if text == f"{emoji('BACK')} BACK":
+        context.user_data['selecting_update_field'] = True  
+        await update.message.reply_text(
+            f"✅ Going back to previous field.\n\nSelect the next field to update or 'UPDATE TRANSACTION' to save changes.\n {await updating_info(context)}",
+            reply_markup=get_updating_field_menu()
+        )
+        return ConversationHandler.END  # Exit conversation state
+    else:
+        context.user_data['transaction']['amount'] = float(update.message.text)
+        context.user_data['selecting_update_field'] = True 
+        await update.message.reply_text(
+            f"✅ Amount updated to: {update.message.text}\n\nSelect the next field to update or 'UPDATE TRANSACTION' to save changes.\n {await updating_info(context)}",
+            reply_markup=get_updating_field_menu()
+        )
+        return ConversationHandler.END  #
 
 async def update_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text
+    if text == f"{emoji('BACK')} BACK":
+        context.user_data['selecting_update_field'] = True  
+        await update.message.reply_text(
+            f"✅ Going back to previous field.\n\nSelect the next field to update or 'UPDATE TRANSACTION' to save changes.\n {await updating_info(context)}",
+            reply_markup=get_updating_field_menu()
+        )
+        return ConversationHandler.END  # Exit conversation state
     context.user_data['transaction']['name'] = update.message.text
     await update.message.reply_text(
         f"✅ Name updated to: {update.message.text}\n\nSelect the next field to update or 'UPDATE TRANSACTION' to save changes.\n {await updating_info(context)}",
@@ -388,7 +405,15 @@ async def update_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     return ConversationHandler.END  # Exit conversation state
 
-async def update_category(update: Update, context: ContextTypes.DEFAULT_TYPE):    
+async def update_category(update: Update, context: ContextTypes.DEFAULT_TYPE):  
+    text = update.message.text
+    if text == f"{emoji('BACK')} BACK":
+        context.user_data['selecting_update_field'] = True  
+        await update.message.reply_text(
+            f"✅ Going back to previous field.\n\nSelect the next field to update or 'UPDATE TRANSACTION' to save changes.\n {await updating_info(context)}",
+            reply_markup=get_updating_field_menu()
+        )
+        return ConversationHandler.END  # Exit conversation state  
     context.user_data['transaction']['category'] = update.message.text
     context.user_data['selecting_update_field'] = True  # Set routing flag
     await update.message.reply_text(
@@ -398,6 +423,14 @@ async def update_category(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END  # Exit conversation state
 
 async def update_shop_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text
+    if text == f"{emoji('BACK')} BACK":
+        context.user_data['selecting_update_field'] = True  
+        await update.message.reply_text(
+            f"✅ Going back to previous field.\n\nSelect the next field to update or 'UPDATE TRANSACTION' to save changes.\n {await updating_info(context)}",
+            reply_markup=get_updating_field_menu()
+        )
+        return ConversationHandler.END  # Exit conversation state
     context.user_data['transaction']['shop'] = update.message.text
     context.user_data['selecting_update_field'] = True  # Set routing flag
     await update.message.reply_text(
@@ -411,6 +444,13 @@ async def update_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if text.upper() == "TODAY":
         today = datetime.datetime.now()
         context.user_data['transaction']['date'] = today
+    elif text == f"{emoji('BACK')} BACK":
+        context.user_data['selecting_update_field'] = True  
+        await update.message.reply_text(
+            f"✅ Going back to previous field.\n\nSelect the next field to update or 'UPDATE TRANSACTION' to save changes.\n {await updating_info(context)}",
+            reply_markup=get_updating_field_menu()
+        )
+        return ConversationHandler.END  # Exit conversation state
     else:
         try:
             date_obj = datetime.datetime.strptime(text, "%Y-%m-%d")
@@ -453,7 +493,9 @@ async def ask_for_update_field(update: Update, context: ContextTypes.DEFAULT_TYP
     elif context.user_data['updating_field'] == "DATE":
         await update.message.reply_text("Please enter the new date (YYYY-MM-DD) or type TODAY:",
                                         reply_markup=ReplyKeyboardMarkup(
-                                            [[KeyboardButton("TODAY")]]))
+                                            [[KeyboardButton("TODAY")],[KeyboardButton(f"{emoji('BACK')} BACK")]],
+                                            resize_keyboard=True
+                                        ))
         
         return WAITING_FOR_DATE_UPDATE
     

@@ -13,9 +13,7 @@ def get_main_menu():
     keyboard = [
         [KeyboardButton('SPENDINGS')],
         [KeyboardButton(f"BUDGETS")],
-        [KeyboardButton(f'SAVINGS')],
         [KeyboardButton(f'CREDITS')],
-        [KeyboardButton(f"EARNINGS")],
         [KeyboardButton(f"{emoji('LOGOUT')} Logout")],
         
     ]
