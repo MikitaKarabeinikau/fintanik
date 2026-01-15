@@ -48,7 +48,6 @@ def get_unpaid_credit_payments_dict():
     """Get unpaid credit payments as list of dictionaries"""
     session = db.get_session()
     try:
-        # Using DISTINCT ON (PostgreSQL)
         stmt = select(
             Credit.lender_name,
             Credit.category,
@@ -77,6 +76,9 @@ def get_unpaid_credit_payments_dict():
                 'amount': row.amount,
                 'payment_date': row.payment_date
             })
+        
+        # Sort the final list by payment_date
+        payments.sort(key=lambda x: x['payment_date'])
         
         return payments
     except Exception as e:

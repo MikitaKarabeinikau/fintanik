@@ -47,8 +47,10 @@ def get_spendings_grouped( group_by: str, start_date: datetime, end_date: dateti
             group_column = Transaction.category
         elif group_by.lower() == 'shop':
             group_column = Transaction.shop
+        elif group_by.lower() == 'name':
+            group_column = Transaction.name
         else:
-            raise ValueError(f"Invalid group_by value: {group_by}. Must be 'category' or 'shop'")
+            raise ValueError(f"Invalid group_by value: {group_by}. Must be 'category', 'shop', or 'name'.")
         
         # Query with grouping and aggregation
         stmt = select(

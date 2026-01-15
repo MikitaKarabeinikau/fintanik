@@ -14,6 +14,7 @@ groups_menu = [
     [KeyboardButton("ALL TRANSACTIONS")],
     [KeyboardButton("BY CATEGORY")],
     [KeyboardButton("BY SHOP")],
+    [KeyboardButton("BY NAME")],
     [KeyboardButton(f"{emoji('BACK')} BACK")]
 ]
 
@@ -66,6 +67,16 @@ async def handle_groups_menu(context: ContextTypes.DEFAULT_TYPE, update: Update)
     elif text == "BY SHOP":
         transactions = get_groupe_transactions(update, context, date, group_by='shop')
         message = view_statistics_grouped(date, transactions, group_by='shop')
+
+        await update.message.reply_text(
+            f"<pre>{message}</pre>",
+            parse_mode='HTML',
+            reply_markup=get_groups_menu()
+        )
+        return
+    elif text == "BY NAME":
+        transactions = get_groupe_transactions(update, context, date, group_by='name')
+        message = view_statistics_grouped(date, transactions, group_by='name')
 
         await update.message.reply_text(
             f"<pre>{message}</pre>",
