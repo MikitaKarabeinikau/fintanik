@@ -87,3 +87,4 @@ class CreditPayment(Base):
     
     def __repr__(self):
         return f"<CreditPayment(credit_id={self.credit_id}, amount={self.amount})>"
+    
