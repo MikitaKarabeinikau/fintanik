@@ -7,7 +7,12 @@ emoji = Settings.emoji
 def get_lessons_keyboard(period: str):
     pass
 
+#TODO: Implement get_free_terms_keyboard function
 def get_free_terms_keyboard(period: str):
+    pass
+
+#TODO: Implement get_students_keyboard function
+def get_students_keyboard():
     pass
 
 earnings_keyboard = {
@@ -15,6 +20,19 @@ earnings_keyboard = {
         [KeyboardButton(f"TUTOR")],
         [KeyboardButton(f"{emoji('BACK')} BACK")],
     ],
+
+    'payment_frequency': [
+        [KeyboardButton(f'DAILY')],
+        [KeyboardButton(f'WEEKLY')],
+        [KeyboardButton(f'MONTHLY')],
+        [KeyboardButton(f'{emoji("BACK")} BACK')],
+        [KeyboardButton(f'{emoji("CANCEL")} CANCEL')]
+    ],
+    
+    'default_back_cancel': [
+        [KeyboardButton(f'{emoji("BACK")} BACK')],
+        [KeyboardButton(f'{emoji("CANCEL")} CANCEL')]
+    ], 
 
     'tutor': [
         [KeyboardButton(f"SCHEDULE ")],
@@ -26,12 +44,10 @@ earnings_keyboard = {
 
     'students': [
         [KeyboardButton(f"ADD STUDENT")],
-        [KeyboardButton(f"UPDATE STUDENT")],
-        [KeyboardButton(f"DELETE STUDENT")],
         [KeyboardButton(f"VIEW STUDENTS")],
-        [KeyboardButton(f"UPDATE SCHEDULE")],
         [KeyboardButton(f"{emoji('BACK')} BACK")],
     ],
+    'view_students': get_students_keyboard(),
 
     'schedule_period': [
         [KeyboardButton(f'TODAY')],
@@ -69,5 +85,10 @@ earnings_keyboard = {
     'free_terms_today': get_free_terms_keyboard('today'),
     'free_terms_week': get_free_terms_keyboard('week'),
     'free_terms_month': get_free_terms_keyboard('month'),
+    'payments': [
+        [KeyboardButton(f'ADD PAYMENT')],
+        [KeyboardButton(f'VIEW PAYMENTS')],
+        [KeyboardButton(f'{emoji("BACK")} BACK')],
+    ],
 
 }

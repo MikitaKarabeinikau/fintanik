@@ -88,3 +88,59 @@ class CreditPayment(Base):
     def __repr__(self):
         return f"<CreditPayment(credit_id={self.credit_id}, amount={self.amount})>"
     
+# ==========================================================================================================
+# EARNING MODELS
+# ==========================================================================================================
+class Students(Base):
+    __tablename__ = 'students'
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(255), nullable=False)
+    surname = Column(String(255), nullable=False)
+    lesson_price = Column(Float, nullable=False)
+    payment_frequency = Column(String(50), nullable=False) # e.g., monthly, weekly, per lesson
+    balance = Column(Float, default=0.0)
+
+
+    schedule = relationship("Schedules", backref="student", cascade="all, delete-orphan")
+
+    def __repr__(self):
+        return f"<Student(name={self.name}, surname={self.surname}, balance={self.balance})>"
+    
+class Schedules(Base):
+    __tablename__ = 'schedules'
+
+    id = Column(Integer, primary_key=True)
+    student_id = Column(Integer, ForeignKey('students.id'), nullable=False)
+    weekday = Column(String(20), nullable=False)  # e.g., Monday, Tuesday
+    time = Column(String(10), nullable=False)     # e.g., 14:00
+    
+    lessons = relationship("Lessons", backref="schedule", cascade="all, delete-orphan")
+
+    def __repr__(self):
+        return f"<Schedule(student_id={self.student_id}, weekday={self.weekday}, time={self.time})>"
+    
+class Lessons(Base):
+    __tablename__ = 'lessons'
+
+    id = Column(Integer, primary_key=True)
+    schedule_id = Column(Integer, ForeignKey('schedules.id'), nullable=False)
+    paid = Column(Boolean, default=False)
+    complited = Column(Boolean, default=False)
+    date = Column(DateTime, nullable=False)
+
+    def __repr__(self):
+        return f"<Lesson(schedule_id={self.schedule_id}, date={self.date}, paid={self.paid}, complited={self.complited})>"
+    
+class Payments(Base):
+    __tablename__ = 'payments'
+
+    id = Column(Integer, primary_key=True)
+    student_id = Column(Integer, ForeignKey('students.id'), nullable=False)
+    amount = Column(Float, nullable=False)
+    date = Column(DateTime, default=datetime.utcnow)
+
+    student = relationship("Students", backref="payments")
+
+    def __repr__(self):
+        return f"<Payment(student_id={self.student_id}, amount={self.amount}, date={self.date})>"

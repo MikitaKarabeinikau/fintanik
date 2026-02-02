@@ -14,6 +14,7 @@ def get_main_menu():
         [KeyboardButton('SPENDINGS')],
         [KeyboardButton(f"BUDGETS")],
         [KeyboardButton(f'CREDITS')],
+        [KeyboardButton(f'EARNINGS')],
         [KeyboardButton(f"{emoji('LOGOUT')} Logout")],
         
     ]
@@ -120,9 +121,17 @@ async def handle_main_menu_button(update: Update, context: ContextTypes.DEFAULT_
         from menus.budget_menu import handle_budget_menu
         return await handle_budget_menu(update, context)
     
+    elif context.user_data.get('in_earnings_menu'):
+        from handlers.earnings import handle_earnings_menu
+        return await handle_earnings_menu(update, context)
+    
+    elif context.user_data.get('in_students_menu'):
+        pass
+
     elif text == 'EARNINGS':
-        update.message.reply_text("💵 Earnings feature coming soon!")
-        return
+        from handlers.earnings import handle_earnings_menu
+        return await handle_earnings_menu(update, context)
+    
     elif text == f"{emoji('SETTINGS')} SETTINGS":
         from commands.settings import settings_command
         return await settings_command(update, context)

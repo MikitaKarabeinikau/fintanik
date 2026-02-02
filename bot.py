@@ -11,10 +11,14 @@ from telegram.ext import (
     ContextTypes,
     ConversationHandler
 )
+
+from flows.student_flow import start_student_flow
 from dotenv import load_dotenv
 from commands.transaction import WAITING_FOR_AMOUNT, WAITING_FOR_AMOUNT_UPDATE, WAITING_FOR_CATEGORY, WAITING_FOR_CATEGORY_UPDATE, WAITING_FOR_DATE, WAITING_FOR_DATE_UPDATE, WAITING_FOR_NAME, WAITING_FOR_NAME_UPDATE, WAITING_FOR_SHOP_NAME, WAITING_FOR_SHOP_NAME_UPDATE, handle_updating_field, receive_amount, receive_category, receive_date, receive_name, receive_shop_name, start_transaction, update_amount, update_category, update_date, update_name, update_shop_name
 from database import db
 from database.models import User, Transaction
+from handlers.students import  receive_payment_frequency, receive_student_name, receive_student_price, receive_student_surname
+from flows.student_flow import WAITING_FOR_PAYMENT_FREQUENCY, WAITING_FOR_STUDENT_NAME, WAITING_FOR_STUDENT_PRICE, WAITING_FOR_STUDENT_SURNAME
 from menus.credit_menu import (
     FETCH_CATEGORY, 
     FETCH_END_DATE, 
@@ -146,7 +150,28 @@ def main():
     },
     fallbacks=[CommandHandler('cancel', cancel_command)],
 )
-    
+    student_conv = ConversationHandler(
+    entry_points=[
+        MessageHandler(filters.Regex('ADD STUDENT'), start_student_flow)
+    ],
+    states={
+        # Define states and handlers for student flow here
+        WAITING_FOR_STUDENT_NAME: [
+            MessageHandler(filters.TEXT & ~filters.COMMAND, receive_student_name)
+        ],
+        WAITING_FOR_STUDENT_SURNAME: [
+            MessageHandler(filters.TEXT & ~filters.COMMAND, receive_student_surname)
+        ],
+        WAITING_FOR_STUDENT_PRICE: [
+            MessageHandler(filters.TEXT & ~filters.COMMAND, receive_student_price)
+        ],        
+        WAITING_FOR_PAYMENT_FREQUENCY: [
+            MessageHandler(filters.TEXT & ~filters.COMMAND, receive_payment_frequency)
+        ],
+    },
+    fallbacks=[CommandHandler('cancel', cancel_command)],
+    )
+
     update_transaction_conv = ConversationHandler(
     entry_points=[
         MessageHandler(filters.Regex('^(AMOUNT|NAME|CATEGORY|SHOP|DATE)$'), handle_updating_field)
@@ -175,6 +200,7 @@ def main():
 
     # Add handlers
     application.add_handler(conv_handler)
+    application.add_handler(student_conv)
     application.add_handler(credit_conv)
     application.add_handler(CommandHandler('help', help_command))
     application.add_handler(CommandHandler('logout', logout_command))
