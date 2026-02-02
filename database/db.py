@@ -41,6 +41,7 @@ class Database:
         # Create tables
         Base.metadata.create_all(self.engine)
         logger.info("Database tables created successfully")
+        self._seed_terms()
     
     def get_session(self):
         """Get database session"""
@@ -53,6 +54,33 @@ class Database:
         if self.engine:
             self.engine.dispose()
 
+    def _seed_terms(self):
+        """Seed terms table with default values"""
+        from database.models import Terms
+        session = self.get_session()
+        try:
+            if session.query(Terms).count() >0:
+                logger.info("Terms table already seeded")
+                return
+            
+            terms_data = [
+                Terms(id=0, weekday='Monday', start_time=None, end_time=None),
+                Terms(id=1, weekday='Tuesday', start_time=None, end_time=None),
+                Terms(id=2, weekday='Wednesday', start_time=None, end_time=None),
+                Terms(id=3, weekday='Thursday', start_time=None, end_time=None),
+                Terms(id=4, weekday='Friday', start_time=None, end_time=None),
+                Terms(id=5, weekday='Saturday', start_time=None, end_time=None),
+                Terms(id=6, weekday='Sunday', start_time=None, end_time=None),
+            ]
+
+            session.bulk_save_objects(terms_data)
+            session.commit()
+            logger.info("Seeded terms table with default values")
+        except Exception as e:
+            session.rollback()
+            logger.error(f"Error seeding terms table: {e}")
+        finally:
+            session.close()
 
 # Global database instance
 db = Database()

@@ -120,6 +120,7 @@ async def handle_main_menu_button(update: Update, context: ContextTypes.DEFAULT_
         context.user_data.get('selecting_budget_category_to_delete'):
         from menus.budget_menu import handle_budget_menu
         return await handle_budget_menu(update, context)
+    
     elif text == 'EARNINGS':
         from handlers.earnings import handle_earnings_menu
         return await handle_earnings_menu(update, context)
@@ -132,6 +133,9 @@ async def handle_main_menu_button(update: Update, context: ContextTypes.DEFAULT_
     elif context.user_data.get('in_students_menu'):
         from handlers.students import handle_students_menu
         return await handle_students_menu(update, context)
+    elif context.user_data.get('in_terms_menu'):
+        from handlers.terms import handle_terms_menu
+        return await handle_terms_menu(update, context)
     
     # elif context.user_data.get('viewing_students'):
     #     from handlers.students import handle_students_menu

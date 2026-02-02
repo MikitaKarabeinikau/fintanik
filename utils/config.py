@@ -82,3 +82,10 @@ class Settings:
 # =============================================================================
     SHOPS = ['Zabka', 'Carrefour', 'Lidl', 'Biedronka', 'Other']
     CATEGORIES = ['Food', 'Transport', 'Entertainment', 'Caffeine', 'Other', 'Junk Food', 'Health', 'Household', 'Clothing', 'Hygiene', 'Nicotine', 'Electronics','Studies','Subscriptions','Delivery']
+
+# =============================================================================
+# WAITING STATES
+# =============================================================================
+    WAITING_FOR_WEEKDAY = 501
+    WAITING_FOR_START_TIME = 502
+    WAITING_FOR_END_TIME = 503

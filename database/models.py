@@ -1,5 +1,5 @@
 from decimal import Decimal
-from sqlalchemy import Column, Float, ForeignKey, Integer, String, DateTime, Boolean, Text, Table
+from sqlalchemy import Column, Float, ForeignKey, Integer, String, DateTime, Boolean, Text, Table, Time
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declarative_base
 from datetime import datetime
@@ -144,3 +144,14 @@ class Payments(Base):
 
     def __repr__(self):
         return f"<Payment(student_id={self.student_id}, amount={self.amount}, date={self.date})>"
+
+class Terms(Base):
+    __tablename__ = 'terms'
+
+    id = Column(Integer, primary_key=True)
+    weekday = Column(String(20), nullable=False)  # e.g., Monday, Tuesday
+    start_time = Column(Time, nullable=True)     # e.g., 14:00
+    end_time = Column(Time, nullable=True)       # e.g., 15:00
+
+    def __repr__(self):
+        return f"<Term(weekday={self.weekday}, start_time={self.start_time}, end_time={self.end_time})>"

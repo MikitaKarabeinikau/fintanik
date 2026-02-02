@@ -25,6 +25,12 @@ earnings_keyboard = {
         [KeyboardButton(f'DELETE STUDENT')],
         [KeyboardButton(f'{emoji("BACK")} BACK')],
     ],
+    'student_schedule_menu': [
+        [KeyboardButton(f'ADD LESSON IN SCHEDULE')],
+        [KeyboardButton(f'UPDATE LESSON')],
+        [KeyboardButton(f'DELETE LESSON')],
+        [KeyboardButton(f'{emoji("BACK")} BACK')],
+    ],
 
     'payment_frequency': [
         [KeyboardButton(f'DAILY')],
@@ -42,7 +48,7 @@ earnings_keyboard = {
     'tutor': [
         [KeyboardButton(f"SCHEDULE ")],
         [KeyboardButton(f"STUDENTS")],
-        [KeyboardButton(f'FREE TERMS')],
+        [KeyboardButton(f'TERMS')],
         [KeyboardButton(f"PAYMENTS")],
         [KeyboardButton(f"{emoji('BACK')} BACK")],
     ],

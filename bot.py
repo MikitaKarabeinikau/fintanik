@@ -21,6 +21,7 @@ from handlers.payments import handle_payment_amount, handle_payment_date, start_
 from handlers.payments import handle_payment_date
 from handlers.students import  receive_payment_frequency, receive_student_name, receive_student_price, receive_student_surname, student_specific_actions
 from flows.student_flow import WAITING_FOR_PAYMENT_FREQUENCY, WAITING_FOR_STUDENT_NAME, WAITING_FOR_STUDENT_PRICE, WAITING_FOR_STUDENT_SURNAME
+from handlers.terms import handle_end_time_selection, handle_start_time_selection, handle_weekday_selection, start_set_terms_flow
 from menus.credit_menu import (
     FETCH_CATEGORY, 
     FETCH_END_DATE, 
@@ -228,7 +229,25 @@ def main():
         CommandHandler('cancel', cancel_command)
     ],
 )
+    
+    set_terms_conv = ConversationHandler(
+        entry_points=[
+            MessageHandler(filters.Regex('^SET TERMS BOUNDARIES$'), start_set_terms_flow)],
+        states={
+            Settings.WAITING_FOR_WEEKDAY: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_weekday_selection)
+            ],
+            Settings.WAITING_FOR_START_TIME: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_start_time_selection)
+            ],
+            Settings.WAITING_FOR_END_TIME: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_end_time_selection)
+            ],
+        },
+        fallbacks=[CommandHandler('cancel', cancel_command)],
+    )
     application.add_handler(payment_conv)
+    application.add_handler(set_terms_conv)
     
 
 
