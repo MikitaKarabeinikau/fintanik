@@ -44,6 +44,8 @@ async def handle_students_menu(update: Update, context: ContextTypes.DEFAULT_TYP
             return await handle_specific_student(update, context)
         await update.message.reply_text("Unknown option selected.")
         return
+    
+
 async def receive_student_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
     student_name = update.message.text
     if student_name == f'{emoji("CANCEL")} CANCEL' or student_name in [f'{emoji("BACK")} BACK']:
@@ -147,8 +149,9 @@ async def student_specific_actions(update: Update, context: ContextTypes.DEFAULT
         await update.message.reply_text("Viewing student schedule...")
         return
     elif text == 'ADD PAYMENT':
-        await update.message.reply_text("Adding payment for student...")
-        return
+        await update.message.reply_text("Provide payment amount:")
+        from handlers.payments import start_payment_flow
+        return start_payment_flow(update, context)
     elif text == 'UPDATE STUDENT INFO':
         await update.message.reply_text("Updating student information...")
         return

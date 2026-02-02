@@ -17,7 +17,9 @@ from dotenv import load_dotenv
 from commands.transaction import WAITING_FOR_AMOUNT, WAITING_FOR_AMOUNT_UPDATE, WAITING_FOR_CATEGORY, WAITING_FOR_CATEGORY_UPDATE, WAITING_FOR_DATE, WAITING_FOR_DATE_UPDATE, WAITING_FOR_NAME, WAITING_FOR_NAME_UPDATE, WAITING_FOR_SHOP_NAME, WAITING_FOR_SHOP_NAME_UPDATE, handle_updating_field, receive_amount, receive_category, receive_date, receive_name, receive_shop_name, start_transaction, update_amount, update_category, update_date, update_name, update_shop_name
 from database import db
 from database.models import User, Transaction
-from handlers.students import  receive_payment_frequency, receive_student_name, receive_student_price, receive_student_surname
+from handlers.payments import handle_payment_amount, handle_payment_date, start_payment_flow
+from handlers.payments import handle_payment_date
+from handlers.students import  receive_payment_frequency, receive_student_name, receive_student_price, receive_student_surname, student_specific_actions
 from flows.student_flow import WAITING_FOR_PAYMENT_FREQUENCY, WAITING_FOR_STUDENT_NAME, WAITING_FOR_STUDENT_PRICE, WAITING_FOR_STUDENT_SURNAME
 from menus.credit_menu import (
     FETCH_CATEGORY, 
@@ -195,6 +197,38 @@ def main():
     },
     fallbacks=[CommandHandler('cancel', cancel_command)],
 )
+    WAITING_FOR_PAYMENT_AMOUNT = 100
+    WAITING_FOR_PAYMENT_DATE = 101
+
+    payment_conv = ConversationHandler(
+    entry_points=[
+        # Entry point: when "ADD PAYMENT" is clicked
+        MessageHandler(
+            filters.Regex('^ADD PAYMENT$'), 
+            start_payment_flow  # Initialize the flow
+        )
+    ],
+    states={
+        WAITING_FOR_PAYMENT_AMOUNT: [
+            # Handle text input for amount
+            MessageHandler(
+                filters.TEXT & ~filters.COMMAND, 
+                handle_payment_amount
+            )
+        ],
+        WAITING_FOR_PAYMENT_DATE: [
+            # Handle date picker button clicks
+            CallbackQueryHandler(
+                handle_payment_date, 
+                pattern="^(year_|month_|day_|date_)"
+            )
+        ],
+    },
+    fallbacks=[
+        CommandHandler('cancel', cancel_command)
+    ],
+)
+    application.add_handler(payment_conv)
     
 
 
