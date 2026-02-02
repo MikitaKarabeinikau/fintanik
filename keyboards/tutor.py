@@ -11,14 +11,19 @@ def get_lessons_keyboard(period: str):
 def get_free_terms_keyboard(period: str):
     pass
 
-#TODO: Implement get_students_keyboard function
-def get_students_keyboard():
-    pass
+
 
 earnings_keyboard = {
     'earnings': [
         [KeyboardButton(f"TUTOR")],
         [KeyboardButton(f"{emoji('BACK')} BACK")],
+    ],
+    'personal_student_menu': [
+        [KeyboardButton(f'SCHEDULE')],
+        [KeyboardButton(f'ADD PAYMENT')],
+        [KeyboardButton(f'UPDATE STUDENT INFO')],
+        [KeyboardButton(f'DELETE STUDENT')],
+        [KeyboardButton(f'{emoji("BACK")} BACK')],
     ],
 
     'payment_frequency': [
@@ -47,7 +52,6 @@ earnings_keyboard = {
         [KeyboardButton(f"VIEW STUDENTS")],
         [KeyboardButton(f"{emoji('BACK')} BACK")],
     ],
-    'view_students': get_students_keyboard(),
 
     'schedule_period': [
         [KeyboardButton(f'TODAY')],

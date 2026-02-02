@@ -42,6 +42,16 @@ def create_student(name: str, surname: str, lesson_price: float, payment_frequen
         session.rollback()
         logger.error(f"Error creating student: {e}")
         raise e
+    
+def get_all_students() -> list[Students]:
+    try:
+        session = db.get_session()
+        students = session.query(Students).all()
+        logger.info(f"Retrieved all students, count={len(students)}")
+        return students
+    except Exception as e:
+        logger.error(f"Error retrieving all students: {e}")
+        raise e
 
 def get_student(student_id: int) -> Students:
     try:

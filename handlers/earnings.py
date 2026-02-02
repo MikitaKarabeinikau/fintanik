@@ -23,6 +23,7 @@ async def handle_earnings_menu(update: Update, context: ContextTypes.DEFAULT_TYP
         keyboard = earnings_keyboard['students']
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
         await update.message.reply_text("👥 Students Management:", reply_markup=reply_markup)
+        context.user_data.pop('in_earnings_menu', None) 
         context.user_data['in_students_menu'] = True
         return
     else:

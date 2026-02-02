@@ -1,4 +1,4 @@
-from telegram import Update
+from telegram import ReplyKeyboardMarkup, Update
 from telegram.ext import ContextTypes, ConversationHandler
 from keyboards.tutor import earnings_keyboard
 from utils.config import Settings
@@ -11,13 +11,39 @@ async def handle_students_menu(update: Update, context: ContextTypes.DEFAULT_TYP
     text = update.message.text
     if text == 'ADD STUDENT':
         await update.message.reply_text(f"👥 Add Student selected.\n{student_add_info(context=context)} Please provide student details.")
-        
         return
     elif text == 'VIEW STUDENTS':
+        context.user_data['viewing_students'] = True
         await update.message.reply_text("👥 View Students selected. Here is the list of your students.")
-        keyboard = earnings_keyboard['view_students']
+        from database.students.crud import get_all_students
+        students = get_all_students()
+        if not students:
+            logger.info("No students found in the database.")
+            await update.message.reply_text("No students found.")
+            return ConversationHandler.END
+        student_list = "\n".join([f"{student.id}. {student.name} {student.surname}" for student in students])
+        keyboard = [] 
+        for student in students:
+            keyboard.append([f"{student.id} {student.name} {student.surname}"])
+        keyboard.append([f"{emoji('BACK')} BACK"])
+        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+        await update.message.reply_text(f"Choose a student:", reply_markup=reply_markup)
         return
-    
+    elif text == f"{emoji('BACK')} BACK":
+        # Go back to students menu
+        context.user_data.pop('in_students_menu', None)
+        context.user_data.pop('viewing_students', None)
+        context.user_data['in_earnings_menu'] = True
+        keyboard = earnings_keyboard['tutor']
+        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+        await update.message.reply_text("💰 Earnings Menu:", reply_markup=reply_markup)
+        return
+    else:
+        # Handle clicking on a student name
+        if context.user_data.get('viewing_students'):
+            return await handle_specific_student(update, context)
+        await update.message.reply_text("Unknown option selected.")
+        return
 async def receive_student_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
     student_name = update.message.text
     if student_name == f'{emoji("CANCEL")} CANCEL' or student_name in [f'{emoji("BACK")} BACK']:
@@ -93,6 +119,8 @@ async def receive_payment_frequency(update: Update, context: ContextTypes.DEFAUL
 
     logger.info(f"Student created: {context.user_data['student']}")
     context.user_data.pop('student', None)
+    keyboard = earnings_keyboard['students']
+    await update.message.reply_text("👥 Students Management:", reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True))
     return ConversationHandler.END
 
 
@@ -102,3 +130,42 @@ def student_add_info(context: ContextTypes.DEFAULT_TYPE):
            f'Surname: {student.get("surname", "")}\n' \
            f'Price: {student.get("price", "")}\n' \
            f'Payment Frequency: {student.get("payment_frequency", "")}\n'
+
+
+async def handle_specific_student(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text
+
+    context.user_data.pop('viewing_students', None)
+    context.user_data['selected_student'] = text
+    keyboard = earnings_keyboard['personal_student_menu']
+    await update.message.reply_text(f"Selected student: {text}", reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True))
+    return
+
+async def student_specific_actions(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text
+    if text == 'SCHEDULE':
+        await update.message.reply_text("Viewing student schedule...")
+        return
+    elif text == 'ADD PAYMENT':
+        await update.message.reply_text("Adding payment for student...")
+        return
+    elif text == 'UPDATE STUDENT INFO':
+        await update.message.reply_text("Updating student information...")
+        return
+    elif text == 'DELETE STUDENT':
+        id = context.user_data['selected_student'].split()[0]
+        from database.students.crud import delete_student
+        delete_student(student_id=int(id))
+        await update.message.reply_text("Student deleted successfully.")
+        context.user_data.pop('selected_student', None)
+        keyboard = earnings_keyboard['students']
+        await update.message.reply_text("👥 Students Management:", reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True))
+        return
+    elif text == f'{emoji("BACK")} BACK':
+        keyboard = earnings_keyboard['students']
+        await update.message.reply_text("👥 Students Management:", reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True))
+        context.user_data.pop('selected_student', None)
+        return
+    else:
+        await update.message.reply_text("Unknown option selected.")
+        return
