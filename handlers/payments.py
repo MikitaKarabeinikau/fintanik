@@ -1,8 +1,12 @@
 from telegram.ext import ContextTypes, ConversationHandler
-from telegram import Update
+from telegram import KeyboardButton, ReplyKeyboardMarkup, Update
 import datetime
 
 from utils.date_picker import DatePickerKeyboard
+from utils.config import Settings
+
+emoji = Settings.emoji
+logger = Settings.LOGGER    
 
 WAITING_FOR_PAYMENT_AMOUNT = 100
 WAITING_FOR_PAYMENT_DATE = 101
@@ -116,14 +120,18 @@ async def start_payment_flow(update: Update, context: ContextTypes.DEFAULT_TYPE)
         'date': None
     }
     
-    await update.message.reply_text("💰 Provide payment amount:")
+    await update.message.reply_text("💰 Provide payment amount:", reply_markup=ReplyKeyboardMarkup([[KeyboardButton(f"{emoji('BACK')} BACK")]], resize_keyboard=True))
     return WAITING_FOR_PAYMENT_AMOUNT
 
 
 async def handle_payment_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Step 2: Receive and validate payment amount"""
     amount = update.message.text
-    
+    if amount == f"{emoji('BACK')} BACK":
+        # Go back to student menu
+        context.user_data.pop('payment_details', None)
+        from handlers.students import handle_personal_student_menu
+        return await handle_personal_student_menu(update, context)
     # Validation
     if not amount.isdigit():
         await update.message.reply_text(

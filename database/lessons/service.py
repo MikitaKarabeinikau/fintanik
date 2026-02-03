@@ -1,6 +1,9 @@
 from datetime import datetime, timedelta
 from calendar import monthrange
+from database import db
 from database.lessons.crud import create_lesson
+from database.models import Lessons, Schedules, Students
+from database.models import Lessons
 from utils.config import Settings
 
 logger = Settings.LOGGER
@@ -91,3 +94,78 @@ def create_lessons_from_schedule(schedule_id: int, weekday: str, time_str: str):
     
     logger.info(f"Created {created_count} lessons for schedule_id={schedule_id}")
     return created_count
+
+def get_lessons_by_period(period: str):
+    """
+    Retrieve lessons based on the specified period.
+    
+    Args:
+        period: 'today', 'week', or 'month'
+        
+    Returns:
+        list: List of lesson records
+    """
+    period = period.lower()
+    now = datetime.now()
+    
+    if period == 'today':
+        start = datetime(now.year, now.month, now.day)
+        end = start + timedelta(days=1)
+    elif period == 'week':
+        start = datetime(now.year, now.month, now.day) - timedelta(days=now.weekday())
+        end = start + timedelta(weeks=1)
+    elif period == 'next_week':
+        start = datetime(now.year, now.month, now.day) - timedelta(days=now.weekday()) + timedelta(weeks=1)
+        end = start + timedelta(weeks=1)
+    elif period == 'month':
+        start = datetime(now.year, now.month, 1)
+        _, last_day = monthrange(now.year, now.month)
+        end = datetime(now.year, now.month, last_day) + timedelta(days=1)
+    else:
+        logger.error(f"Invalid period: {period}")
+        return []
+    
+    logger.info(f"Querying lessons for period '{period}': start={start}, end={end}")
+    
+    try:
+        session = db.get_session()
+        lessons = session.query(Lessons).filter(Lessons.date >= start, Lessons.date < end).all()
+        logger.info(f"Retrieved {len(lessons)} lessons for period '{period}'")
+        
+        # Debug: show what lessons were found
+        for lesson in lessons:
+            logger.info(f"  Lesson ID {lesson.id}: date={lesson.date}, schedule_id={lesson.schedule_id}")
+        
+        return lessons
+    except Exception as e:
+        logger.error(f"Error retrieving lessons for period '{period}': {e}")
+        raise
+    finally:
+        session.close()
+
+def get_lessons_with_student_info(period: str):
+    """
+    Retrieve lessons along with associated student information for a given period.
+    
+    Args:
+        period: 'today', 'week', or 'month'
+        
+    Returns:
+        list: List of tuples (Lesson, Student)
+    """
+    lessons = get_lessons_by_period(period)
+    lessons_with_students = []
+    
+    try:
+        session = db.get_session()
+        for lesson in lessons:
+            schedule = session.query(Schedules).filter_by(id=lesson.schedule_id).first()
+            student = session.query(Students).filter_by(id=schedule.student_id).first()
+            lessons_with_students.append((lesson, student))
+        logger.info(f"Retrieved {len(lessons_with_students)} lessons with student info for period '{period}'")
+        return lessons_with_students
+    except Exception as e:
+        logger.error(f"Error retrieving lessons with student info for period '{period}': {e}")
+        raise
+    finally:
+        session.close()     

@@ -124,6 +124,12 @@ async def handle_main_menu_button(update: Update, context: ContextTypes.DEFAULT_
     elif context.user_data.get('waiting_for_delete_schedule'):
         from handlers.schedule import handle_schedule_lesson_to_delete_selection
         return await handle_schedule_lesson_to_delete_selection(update, context)
+    elif context.user_data.get('in_updating_schedule_lessons_menu'):
+        from handlers.schedule import handle_updating_schedule_lessons_menu
+        return await handle_updating_schedule_lessons_menu(update, context)
+    elif context.user_data.get('in_updating_schedule_time_selection'):
+        from handlers.schedule import handle_updating_schedule_time_selection
+        return await handle_updating_schedule_time_selection(update, context)
         
     elif text == 'EARNINGS':
         from handlers.earnings import handle_earnings_menu
@@ -131,10 +137,13 @@ async def handle_main_menu_button(update: Update, context: ContextTypes.DEFAULT_
     elif context.user_data.get('in_earnings_menu'):
         from handlers.earnings import handle_earnings_menu
         return await handle_earnings_menu(update, context)
-    elif context.user_data.get('in_schedule_menu'):  # MOVE THIS BEFORE selected_student
+    elif context.user_data.get('in_schedule_menu'):  
         from handlers.schedule import handle_schedule_menu
         return await handle_schedule_menu(update, context)
-    elif context.user_data.get('selected_student'):  # NOW THIS COMES AFTER
+    elif context.user_data.get('in_schedule_view_menu'):  
+        from handlers.schedule import handle_schedule_view_menu
+        return await handle_schedule_view_menu(update, context)
+    elif context.user_data.get('selected_student'):  
         from handlers.students import student_specific_actions
         return await student_specific_actions(update, context)
     elif context.user_data.get('in_students_menu'):
@@ -143,6 +152,9 @@ async def handle_main_menu_button(update: Update, context: ContextTypes.DEFAULT_
     elif context.user_data.get('in_terms_menu'):
         from handlers.terms import handle_terms_menu
         return await handle_terms_menu(update, context)
+    elif context.user_data.get('in_lessons_schedule_menu'):
+        from handlers.schedule import handle_lessons_schedule_menu
+        return await handle_lessons_schedule_menu(update, context)
     
     
     elif text == f"{emoji('SETTINGS')} SETTINGS":

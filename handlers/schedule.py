@@ -13,8 +13,24 @@ async def handle_schedule_menu(update: Update, context: ContextTypes.DEFAULT_TYP
 
     if text == 'ADD LESSON IN SCHEDULE':
         return await start_add_lesson_in_schedule_flow(update, context)
-    elif text == 'UPDATE LESSON':
-        await update.message.reply_text("Update Lesson selected. This feature is under development.")
+    elif text == 'UPDATE LESSONS TIME':
+        context.user_data['in_updating_schedule_lessons_menu'] = True
+        schedule_lessons_keyboard = []
+        from database.schedule.crud import get_schedules_by_student
+        student_id = context.user_data.get('selected_student')[0]
+        schedules = get_schedules_by_student(student_id)
+        logger.info(f"Found {len(schedules)} schedules for student_id={student_id}")
+        if not schedules:
+            await update.message.reply_text("No lessons found to update.", 
+                reply_markup=ReplyKeyboardMarkup(earnings_keyboard['student_schedule_menu'], resize_keyboard=True))
+            return
+        for schedule in schedules:
+            schedule_lessons_keyboard.append([KeyboardButton(f"{schedule.id} {schedule.weekday} at {schedule.time}")])
+        schedule_lessons_keyboard.append([KeyboardButton(f"{emoji('BACK')} BACK")])
+        await update.message.reply_text(
+            "Please select the lesson to update:",
+            reply_markup=ReplyKeyboardMarkup(schedule_lessons_keyboard, resize_keyboard=True)
+        )
         return
     elif text == 'DELETE LESSON':
         from database.schedule.crud import get_schedules_by_student
@@ -47,6 +63,7 @@ async def handle_schedule_menu(update: Update, context: ContextTypes.DEFAULT_TYP
     elif text == f"{emoji('BACK')} BACK":
         # Go back to tutor menu
         context.user_data.pop('in_schedule_menu', None)
+        context.user_data.pop('selected_student', None)
         context.user_data['in_earnings_menu'] = True
         keyboard = earnings_keyboard['tutor']
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
@@ -235,3 +252,89 @@ async def handle_schedule_time_selection(update: Update, context: ContextTypes.D
     context.user_data.pop('lesson', None)
     
     return ConversationHandler.END
+
+async def handle_schedule_view_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    period = update.message.text
+
+    if period == f"{emoji('BACK')} BACK":
+        # Go back to tutor menu
+        context.user_data.pop('in_schedule_view_menu', None)
+        context.user_data['in_earnings_menu'] = True
+        keyboard = earnings_keyboard['tutor']
+    else:
+        from database.lessons.service import get_lessons_with_student_info
+        lessons = get_lessons_with_student_info(period)
+        if not lessons:
+            await update.message.reply_text(f"No lessons found for the period: {period}.",
+                reply_markup=ReplyKeyboardMarkup(earnings_keyboard['schedule_period'], resize_keyboard=True))
+            return
+        
+        lessons_keyboard = [[KeyboardButton(f" {lesson[1].id} {lesson[1].name} - {lesson[0].date.strftime('%Y-%m-%d %H:%M')}")] for lesson in lessons]
+        lessons_keyboard.append([KeyboardButton(f"{emoji('BACK')} BACK")])
+        await update.message.reply_text(
+            f"📅 Lessons for the period: {period}",
+            reply_markup=ReplyKeyboardMarkup(lessons_keyboard, resize_keyboard=True)
+        )
+        context.user_data.pop('in_schedule_view_menu', None)
+        context.user_data['in_schedule_lessons_menu'] = True
+        return
+
+async def handle_lessons_schedule_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text
+    context.user_data['selected_lesson'] = text
+    if text == f"{emoji('BACK')} BACK":
+        # Go back to schedule view menu
+        context.user_data.pop('in_lessons_schedule_menu', None)
+        context.user_data['in_schedule_view_menu'] = True
+        keyboard = earnings_keyboard['schedule_period']
+        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+        await update.message.reply_text("🗓️ Schedule Management selected. Here you can manage your tutoring schedule.", reply_markup=reply_markup)
+        return
+    
+    await update.message.reply_text(f"Lesson Details selected. This feature is under development. \n{text}")
+
+# ======================================================
+# UPDATING SCHEDULE LESSONS MENU HANDLER
+# ======================================================
+async def handle_updating_schedule_lessons_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    selected_lesson_id = update.message.text.split()[0]
+    if selected_lesson_id == f"{emoji('BACK')} BACK":
+        # Go back to student schedule menu
+        context.user_data.pop('in_updating_schedule_lessons_menu', None)
+        await update.message.reply_text("Returning to Student Schedule menu.",reply_markup=ReplyKeyboardMarkup(earnings_keyboard['student_schedule_menu'], resize_keyboard=True))
+        return
+    free_terms = get_free_terms(update.message.text.split()[1])  # Extract day from button text
+    free_terms_keyboard = [[KeyboardButton(slot) for slot in row] for row in free_terms]
+    free_terms_keyboard.append([KeyboardButton(f"{emoji('BACK')} BACK")])
+    context.user_data['selected_lesson_id'] = selected_lesson_id
+    await update.message.reply_text(
+        f"Selected lesson ID: {selected_lesson_id}. Please select the new time for the lesson:",
+        reply_markup=ReplyKeyboardMarkup(free_terms_keyboard, resize_keyboard=True)
+    )
+    context.user_data.pop('in_updating_schedule_lessons_menu', None)
+    context.user_data['in_updating_schedule_time_selection'] = True
+    return
+
+async def handle_updating_schedule_time_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    logger.info(f"Handling schedule time selection with text: {update.message.text}")
+    selected_time = update.message.text
+    if selected_time == f"{emoji('BACK')} BACK":
+        # Go back to lessons list
+        context.user_data.pop('in_updating_schedule_time_selection', None)
+        await update.message.reply_text("Returning to lessons list.",reply_markup=ReplyKeyboardMarkup(earnings_keyboard['student_schedule_menu'], resize_keyboard=True))
+        return
+    from database.schedule.crud import update_schedule_time
+    try:
+        update_schedule_time(schedule_id=context.user_data['selected_lesson_id'], new_time=selected_time)
+        logger.info(f"Updated schedule ID {context.user_data['selected_lesson_id']} to new time {selected_time}")
+        context.user_data.pop('in_updating_schedule_time_selection', None)
+        await update.message.reply_text(f"✅ Lesson time updated to {selected_time}.",
+            reply_markup=ReplyKeyboardMarkup(earnings_keyboard['student_schedule_menu'], resize_keyboard=True))
+    except Exception as e:
+        logger.error(f"Error updating schedule ID {context.user_data['selected_lesson_id']} to new time {selected_time}: {e}")
+        await update.message.reply_text(f"❌ Failed to update lesson time.",
+            reply_markup=ReplyKeyboardMarkup(earnings_keyboard['student_schedule_menu'], resize_keyboard=True))
+        context.user_data.pop('in_updating_schedule_time_selection', None)
+        context.user_data.pop('selected_lesson_id', None)
+        
+    return

@@ -70,16 +70,24 @@ def get_all_schedules_by_date(date:datetime):
     pass
     
 
-def update_schedule(schedule:Schedules) -> Schedules:
+def update_schedule_time(schedule_id:int , new_time:datetime) -> Schedules:
     try:
         session = db.get_session()
-        session.commit()
-        logger.info(f"Updated schedule with id={schedule.id}")
-        return schedule
+        schedule = get_schedule(schedule_id)
+        if schedule:
+            schedule.time = new_time
+            session.commit()
+            logger.info(f"Updated schedule with id={schedule.id} to new time={new_time}")
+            return schedule
+        else:
+            logger.warning(f"Schedule with id={schedule_id} not found for update")
+            return None
     except Exception as e:
         session.rollback()
-        logger.error(f"Error updating schedule with id={schedule.id}: {e}")
+        logger.error(f"Error updating schedule with id={schedule_id}: {e}")
         raise e 
+    finally:
+        session.close()
 
 def delete_schedule(schedule_id: int) -> bool:
     try:

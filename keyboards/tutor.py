@@ -27,7 +27,7 @@ earnings_keyboard = {
     ],
     'student_schedule_menu': [
         [KeyboardButton(f'ADD LESSON IN SCHEDULE')],
-        [KeyboardButton(f'UPDATE LESSON')],
+        [KeyboardButton(f'UPDATE LESSONS TIME')],
         [KeyboardButton(f'DELETE LESSON')],
         [KeyboardButton(f'{emoji("BACK")} BACK')],
     ],
@@ -62,6 +62,7 @@ earnings_keyboard = {
     'schedule_period': [
         [KeyboardButton(f'TODAY')],
         [KeyboardButton(f'THIS WEEK')],
+        [KeyboardButton(f'NEXT WEEK')],
         [KeyboardButton(f'THIS MONTH')],
         [KeyboardButton(f'{emoji("BACK")} BACK')],
     ],
