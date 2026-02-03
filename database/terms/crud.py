@@ -39,6 +39,33 @@ def get_all_terms() -> list[Terms]:
         logger.error(f"Error retrieving terms: {e}")
         raise
 
+def get_terms_boundaries(weekday: str) -> tuple[str, str]:
+    try:
+        session = db.get_session()
+        term = session.query(Terms).filter_by(weekday=weekday).first()
+        if not term:
+            raise ValueError(f"No term found for weekday: {weekday}")
+        logger.info(f"Retrieved term boundaries for {weekday}: {term.start_time} - {term.end_time}")
+        return (term.start_time, term.end_time)
+    except Exception as e:
+        logger.error(f"Error retrieving term boundaries for {weekday}: {e}")
+        raise
+    finally:
+        session.close()
+
+def get_work_days() -> list[str]:
+    try:
+        session = db.get_session()
+        stmt = select(Terms.weekday).where(Terms.start_time != '00:00', Terms.end_time != '00:00').order_by(Terms.id)
+        result = session.execute(stmt).scalars().all()
+        logger.info(f"Retrieved work days: {result}")
+        return result
+    except Exception as e:
+        logger.error(f"Error retrieving work days: {e}")
+        raise
+    finally:
+        session.close()
+
 def update_start_time(term_id: int, new_start_time: str) -> Terms:
     try:
         session = db.get_session()

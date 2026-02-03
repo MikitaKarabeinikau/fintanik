@@ -32,6 +32,12 @@ async def handle_earnings_menu(update: Update, context: ContextTypes.DEFAULT_TYP
         context.user_data.pop('in_earnings_menu', None)
         context.user_data['in_terms_menu'] = True
         return
+    elif text == 'SCHEDULE':
+        keyboard = earnings_keyboard['schedule']
+        await update.message.reply_text("🗓️ Schedule Management selected. Here you can manage your tutoring schedule.", reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True))
+        context.user_data.pop('in_earnings_menu', None)
+        context.user_data['in_schedule_menu'] = True
+        return
     elif text == f"{emoji('BACK')} BACK":
         # Go back to main menu
         context.user_data.pop('in_earnings_menu', None)

@@ -34,8 +34,23 @@ async def handle_terms_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
     if text == 'SET TERMS BOUNDARIES':
         return await start_set_terms_flow(update, context)
-    await update.message.reply_text("Terms Management selected. Here you can manage your tutoring terms.")
-    return
+    elif text == f'{emoji("BACK")} BACK':
+        # Go back to earnings menu
+        context.user_data.pop('in_terms_menu', None)
+        context.user_data['in_earnings_menu'] = True
+        keyboard = earnings_keyboard['earnings']
+        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+        await update.message.reply_text("💰 Earnings Menu:", reply_markup=reply_markup)
+        return
+    elif text == 'FREE TERMS':
+        await update.message.reply_text("Here are your free terms: ... (functionality to be implemented)")
+        return
+    elif text == 'CHANGE TERMS BOUNDARIES':
+        await update.message.reply_text("Here you can change your term boundaries: ... (functionality to be implemented)")
+        return
+    else:
+        await update.message.reply_text("Terms Management selected. Here you can manage your tutoring terms.")
+        return
 
 async def handle_weekday_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
     weekday = update.message.text
@@ -44,7 +59,8 @@ async def handle_weekday_selection(update: Update, context: ContextTypes.DEFAULT
         await update.message.reply_text("Returning to Terms Management menu.",reply_markup=ReplyKeyboardMarkup(earnings_keyboard['terms'], resize_keyboard=True))
         return ConversationHandler.END
     context.user_data['terms']['weekday'] = weekday
-    await update.message.reply_text(f"Selected weekday: {weekday}. Please enter the start time (HH:MM):", reply_markup=ReplyKeyboardMarkup([[KeyboardButton(f"{emoji('BACK')} BACK")]], resize_keyboard=True))
+    keyboard = [[KeyboardButton('WEEKEND')],[KeyboardButton(f"{emoji('BACK')} BACK")]]
+    await update.message.reply_text(f"Selected weekday: {weekday}. Please enter the start time (HH:MM):", reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True))
     return Settings.WAITING_FOR_START_TIME
 
 async def handle_start_time_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -62,15 +78,35 @@ async def handle_start_time_selection(update: Update, context: ContextTypes.DEFA
             reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
         )
         return Settings.WAITING_FOR_WEEKDAY
-    if not re.match(r'^\d{2}:\d{2}$', start_time):
-        await update.message.reply_text("❌ Invalid time format. Please enter the start time in HH:MM format:")
-        return Settings.WAITING_FOR_START_TIME
-    if start_time < "08:00" or start_time > "20:00":
-        await update.message.reply_text("❌ Start time must be between 08:00 and 20:00. Please enter a valid start time (HH:MM):")
-        return Settings.WAITING_FOR_START_TIME
-    context.user_data['terms']['start_time'] = start_time
-    await update.message.reply_text(f"Selected start time: {start_time}. Please enter the end time (HH:MM):", reply_markup=ReplyKeyboardMarkup([[KeyboardButton(f"{emoji('BACK')} BACK")]], resize_keyboard=True))
-    return Settings.WAITING_FOR_END_TIME
+    elif start_time == "WEEKEND":
+        #WEEKEND SPECIAL CASE
+        context.user_data['terms']['start_time'] = '00:00'
+        context.user_data['terms']['end_time'] = '00:00'
+        from database.terms.crud import update_term
+        try:
+            weekday = context.user_data['terms']['weekday']
+            start_time = context.user_data['terms']['start_time']
+            end_time = context.user_data['terms']['end_time']
+            update_term(weekday, start_time, end_time)
+            await update.message.reply_text("✅ Term successfully created!")
+        except Exception as e:
+            logger.error(f"Error creating term: {e}")
+            await update.message.reply_text("❌ Failed to create term. Please try again.")
+            
+        context.user_data.pop('terms', None)
+        await update.message.reply_text("Returning to Terms Management menu.",reply_markup=ReplyKeyboardMarkup(earnings_keyboard['terms'], resize_keyboard=True))
+        return ConversationHandler.END 
+    else:
+        if not re.match(r'^\d{2}:\d{2}$', start_time):
+            await update.message.reply_text("❌ Invalid time format. Please enter the start time in HH:MM format:")
+        
+            return Settings.WAITING_FOR_START_TIME
+        if start_time < "08:00" or start_time > "20:00":
+            await update.message.reply_text("❌ Start time must be between 08:00 and 20:00. Please enter a valid start time (HH:MM):")
+            return Settings.WAITING_FOR_START_TIME
+        context.user_data['terms']['start_time'] = start_time
+        await update.message.reply_text(f"Selected start time: {start_time}. Please enter the end time (HH:MM):", reply_markup=ReplyKeyboardMarkup([[KeyboardButton(f"{emoji('BACK')} BACK")]], resize_keyboard=True))
+        return Settings.WAITING_FOR_END_TIME
 
 async def handle_end_time_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
     end_time = update.message.text

@@ -136,6 +136,9 @@ async def handle_main_menu_button(update: Update, context: ContextTypes.DEFAULT_
     elif context.user_data.get('in_terms_menu'):
         from handlers.terms import handle_terms_menu
         return await handle_terms_menu(update, context)
+    elif context.user_data.get('in_schedule_menu'):
+        from handlers.schedule import handle_schedule_menu
+        return await handle_schedule_menu(update, context)
     
     # elif context.user_data.get('viewing_students'):
     #     from handlers.students import handle_students_menu

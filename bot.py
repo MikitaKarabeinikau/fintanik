@@ -19,6 +19,7 @@ from database import db
 from database.models import User, Transaction
 from handlers.payments import handle_payment_amount, handle_payment_date, start_payment_flow
 from handlers.payments import handle_payment_date
+from handlers.schedule import handle_lesson_schedule_day_selection
 from handlers.students import  receive_payment_frequency, receive_student_name, receive_student_price, receive_student_surname, student_specific_actions
 from flows.student_flow import WAITING_FOR_PAYMENT_FREQUENCY, WAITING_FOR_STUDENT_NAME, WAITING_FOR_STUDENT_PRICE, WAITING_FOR_STUDENT_SURNAME
 from handlers.terms import handle_end_time_selection, handle_start_time_selection, handle_weekday_selection, start_set_terms_flow
@@ -250,7 +251,22 @@ def main():
     application.add_handler(set_terms_conv)
     
 
-
+    from handlers.schedule import start_add_lesson_in_schedule_flow, handle_schedule_time_selection
+    add_lesson_in_schedule_conv = ConversationHandler(
+        entry_points=[
+            MessageHandler(filters.Regex('^ADD LESSON IN SCHEDULE$'), start_add_lesson_in_schedule_flow)],
+        states={
+            # Define states and handlers for adding lesson in schedule here
+            Settings.WAITING_FOR_LESSON_SCHEDULE_DAY: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_lesson_schedule_day_selection)
+            ],
+            Settings.WAITING_FOR_LESSON_SCHEDULE_TIME: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_schedule_time_selection)
+            ],
+        },
+        fallbacks=[CommandHandler('cancel', cancel_command)],
+    )
+    application.add_handler(add_lesson_in_schedule_conv)
     # Add handlers
     application.add_handler(conv_handler)
     application.add_handler(student_conv)
