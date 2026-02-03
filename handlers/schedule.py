@@ -10,8 +10,40 @@ emoji = Settings.emoji
 
 async def handle_schedule_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
+
     if text == 'ADD LESSON IN SCHEDULE':
         return await start_add_lesson_in_schedule_flow(update, context)
+    elif text == 'UPDATE LESSON':
+        await update.message.reply_text("Update Lesson selected. This feature is under development.")
+        return
+    elif text == 'DELETE LESSON':
+        from database.schedule.crud import get_schedules_by_student
+        student_id = context.user_data.get('selected_student')[0]
+        logger.info(f"DELETE LESSON clicked for student_id={student_id}")
+        
+        schedules = get_schedules_by_student(student_id)
+        logger.info(f"Found {len(schedules)} schedules: {schedules}")
+        
+        if not schedules:
+            await update.message.reply_text("No lessons found to delete.", 
+                reply_markup=ReplyKeyboardMarkup(earnings_keyboard['student_schedule_menu'], resize_keyboard=True))
+            return
+        
+        # Set flag to track we're waiting for selection
+        context.user_data['waiting_for_delete_schedule'] = True
+        logger.info(f"Set waiting_for_delete_schedule flag")
+        
+        keyboard = [[KeyboardButton(f"{schedule.id} {schedule.weekday} at {schedule.time}")] for schedule in schedules]
+        keyboard.append([KeyboardButton(f"{emoji('BACK')} BACK")])
+        
+        logger.info(f"Created keyboard with {len(keyboard)} buttons")
+        
+        await update.message.reply_text(
+            "Please select the lesson to delete:",
+            reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+        )
+        logger.info("Sent message with keyboard")
+        return
     elif text == f"{emoji('BACK')} BACK":
         # Go back to tutor menu
         context.user_data.pop('in_schedule_menu', None)
@@ -20,8 +52,34 @@ async def handle_schedule_menu(update: Update, context: ContextTypes.DEFAULT_TYP
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
         await update.message.reply_text("💰 Earnings Menu:", reply_markup=reply_markup)
         return
-    else:
-        await update.message.reply_text("Schedule Management selected. Here you can manage your tutoring schedule.")
+    
+    await update.message.reply_text("Schedule Management selected. Here you can manage your tutoring schedule.")
+
+async def handle_schedule_lesson_to_delete_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    schedule_lesson = update.message.text
+    
+    if schedule_lesson == f"{emoji('BACK')} BACK":
+        # Clear flag and return to schedule menu
+        context.user_data.pop('waiting_for_delete_schedule', None)
+        await update.message.reply_text("Cancelled deletion.", 
+            reply_markup=ReplyKeyboardMarkup(earnings_keyboard['student_schedule_menu'], resize_keyboard=True))
+        return
+    
+    schedule_id = int(schedule_lesson.split()[0])
+    from database.schedule.crud import delete_schedule
+    
+    try:
+        delete_schedule(schedule_id)
+        logger.info(f"Deleted schedule with ID {schedule_id}")
+        await update.message.reply_text(f"✅ Lesson with ID {schedule_id} has been deleted.",
+            reply_markup=ReplyKeyboardMarkup(earnings_keyboard['student_schedule_menu'], resize_keyboard=True))
+    except Exception as e:
+        logger.error(f"Error deleting schedule with ID {schedule_id}: {e}")
+        await update.message.reply_text(f"❌ Failed to delete lesson with ID {schedule_id}.",
+            reply_markup=ReplyKeyboardMarkup(earnings_keyboard['student_schedule_menu'], resize_keyboard=True))
+    
+    # Clear the flag
+    context.user_data.pop('waiting_for_delete_schedule', None)
 
 def get_free_terms(day: str):
     """

@@ -121,13 +121,20 @@ async def handle_main_menu_button(update: Update, context: ContextTypes.DEFAULT_
         from menus.budget_menu import handle_budget_menu
         return await handle_budget_menu(update, context)
     
+    elif context.user_data.get('waiting_for_delete_schedule'):
+        from handlers.schedule import handle_schedule_lesson_to_delete_selection
+        return await handle_schedule_lesson_to_delete_selection(update, context)
+        
     elif text == 'EARNINGS':
         from handlers.earnings import handle_earnings_menu
         return await handle_earnings_menu(update, context)
     elif context.user_data.get('in_earnings_menu'):
         from handlers.earnings import handle_earnings_menu
         return await handle_earnings_menu(update, context)
-    elif context.user_data.get('selected_student'):
+    elif context.user_data.get('in_schedule_menu'):  # MOVE THIS BEFORE selected_student
+        from handlers.schedule import handle_schedule_menu
+        return await handle_schedule_menu(update, context)
+    elif context.user_data.get('selected_student'):  # NOW THIS COMES AFTER
         from handlers.students import student_specific_actions
         return await student_specific_actions(update, context)
     elif context.user_data.get('in_students_menu'):
@@ -136,14 +143,6 @@ async def handle_main_menu_button(update: Update, context: ContextTypes.DEFAULT_
     elif context.user_data.get('in_terms_menu'):
         from handlers.terms import handle_terms_menu
         return await handle_terms_menu(update, context)
-    elif context.user_data.get('in_schedule_menu'):
-        from handlers.schedule import handle_schedule_menu
-        return await handle_schedule_menu(update, context)
-    
-    # elif context.user_data.get('viewing_students'):
-    #     from handlers.students import handle_students_menu
-    #     return await handle_students_menu(update, context)
-    
     
     
     elif text == f"{emoji('SETTINGS')} SETTINGS":

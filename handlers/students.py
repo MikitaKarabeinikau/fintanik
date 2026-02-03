@@ -159,6 +159,7 @@ async def handle_specific_student(update: Update, context: ContextTypes.DEFAULT_
 async def student_specific_actions(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
     if text == 'SCHEDULE':
+        context.user_data['in_schedule_menu'] = True
         student_schedule_menu = earnings_keyboard['student_schedule_menu']
         keyboard = ReplyKeyboardMarkup(student_schedule_menu, resize_keyboard=True)
         await update.message.reply_text("👨‍🏫 Student Schedule Menu:", reply_markup=keyboard)
