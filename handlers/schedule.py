@@ -297,12 +297,14 @@ async def handle_lessons_schedule_menu(update: Update, context: ContextTypes.DEF
 # UPDATING SCHEDULE LESSONS MENU HANDLER
 # ======================================================
 async def handle_updating_schedule_lessons_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    selected_lesson_id = update.message.text.split()[0]
-    if selected_lesson_id == f"{emoji('BACK')} BACK":
+    if update.message.text == f"{emoji('BACK')} BACK":
         # Go back to student schedule menu
         context.user_data.pop('in_updating_schedule_lessons_menu', None)
+        context.user_data.pop('selected_lesson_id', None)
         await update.message.reply_text("Returning to Student Schedule menu.",reply_markup=ReplyKeyboardMarkup(earnings_keyboard['student_schedule_menu'], resize_keyboard=True))
         return
+    selected_lesson_id = update.message.text.split()[0]
+
     free_terms = get_free_terms(update.message.text.split()[1])  # Extract day from button text
     free_terms_keyboard = [[KeyboardButton(slot) for slot in row] for row in free_terms]
     free_terms_keyboard.append([KeyboardButton(f"{emoji('BACK')} BACK")])
@@ -336,5 +338,5 @@ async def handle_updating_schedule_time_selection(update: Update, context: Conte
             reply_markup=ReplyKeyboardMarkup(earnings_keyboard['student_schedule_menu'], resize_keyboard=True))
         context.user_data.pop('in_updating_schedule_time_selection', None)
         context.user_data.pop('selected_lesson_id', None)
-        
+
     return

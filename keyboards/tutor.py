@@ -31,6 +31,14 @@ earnings_keyboard = {
         [KeyboardButton(f'DELETE LESSON')],
         [KeyboardButton(f'{emoji("BACK")} BACK')],
     ],
+    'update_student_info_menu': [
+        [KeyboardButton(f'UPDATE PRICE')],
+        [KeyboardButton(f'UPDATE NAME')],
+        [KeyboardButton(f'UPDATE SURNAME')],
+        [KeyboardButton(f'UPDATE PAYMENT FREQUENCY')],
+        [KeyboardButton(f'DONE')],
+        [KeyboardButton(f'{emoji("BACK")} BACK')],
+    ],
 
     'payment_frequency': [
         [KeyboardButton(f'DAILY')],
@@ -100,6 +108,10 @@ earnings_keyboard = {
         [KeyboardButton(f'ADD PAYMENT')],
         [KeyboardButton(f'VIEW PAYMENTS')],
         [KeyboardButton(f'{emoji("BACK")} BACK')],
+    ],
+    'back_cancel': [
+        [KeyboardButton(f'{emoji("BACK")} BACK')],
+        [KeyboardButton(f'{emoji("CANCEL")} CANCEL')],
     ],
 
 }

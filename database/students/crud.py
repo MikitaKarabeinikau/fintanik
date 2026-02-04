@@ -46,7 +46,7 @@ def create_student(name: str, surname: str, lesson_price: float, payment_frequen
 def get_all_students() -> list[Students]:
     try:
         session = db.get_session()
-        students = session.query(Students).all()
+        students = session.query(Students).order_by(Students.id).all()
         logger.info(f"Retrieved all students, count={len(students)}")
         return students
     except Exception as e:

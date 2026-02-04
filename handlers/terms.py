@@ -7,6 +7,48 @@ logger = Settings.LOGGER
 emoji = Settings.emoji
 
 
+def get_free_terms_table():
+    from handlers.schedule import get_free_terms
+    terms = {
+        "Monday": [],
+        "Tuesday": [],
+        "Wednesday": [],
+        "Thursday": [],
+        "Friday": [],
+        "Saturday": [],
+        "Sunday": []
+    }
+    for day in terms.keys():
+        free_slots = get_free_terms(day)
+        for i in free_slots:
+            if i == '00:00':
+                continue
+            for slot in i:
+                terms[day].append(slot)
+    # First, calculate the maximum width needed for the slots column
+    max_slot_width = len("Free Slots")
+    for day, slots in terms.items():
+        if slots:
+            slots_str = ', '.join(slots)
+            max_slot_width = max(max_slot_width, len(slots_str))
+
+    # Add some padding
+    max_slot_width += 2
+
+    response = "<b>📅 Free Terms:</b>\n\n"
+    response += "<pre>"
+    response += f"┌─────────────┬─{'─' * max_slot_width}─┐\n"
+    response += f"│     Day     │ {'Free Slots':<{max_slot_width}} │\n"
+    response += f"├─────────────┼─{'─' * max_slot_width}─┤\n"
+    for day, slots in terms.items():
+        if slots == []:
+            continue
+        slots_str = ', '.join(slots) if slots else 'No free terms'
+        response += f"│ {day:<11} │ {slots_str:<{max_slot_width}} │\n"
+    response += f"└─────────────┴─{'─' * max_slot_width}─┘"
+    response += "</pre>"
+    return response
+
 async def start_set_terms_flow(update: Update, context: ContextTypes.DEFAULT_TYPE):
     from database.terms.crud import get_unset_terms
     unset_terms = get_unset_terms()
@@ -43,7 +85,8 @@ async def handle_terms_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("💰 Earnings Menu:", reply_markup=reply_markup)
         return
     elif text == 'FREE TERMS':
-        await update.message.reply_text("Here are your free terms: ... (functionality to be implemented)")
+        response = get_free_terms_table() 
+        await update.message.reply_text(response, parse_mode='HTML')
         return
     elif text == 'CHANGE TERMS BOUNDARIES':
         await update.message.reply_text("Here you can change your term boundaries: ... (functionality to be implemented)")

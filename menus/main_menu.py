@@ -130,6 +130,25 @@ async def handle_main_menu_button(update: Update, context: ContextTypes.DEFAULT_
     elif context.user_data.get('in_updating_schedule_time_selection'):
         from handlers.schedule import handle_updating_schedule_time_selection
         return await handle_updating_schedule_time_selection(update, context)
+    
+    elif context.user_data.get('in_update_in_updating_student_info'):
+        from handlers.students import handle_updating_student_info
+        return await handle_updating_student_info(update, context)
+    elif context.user_data.get('update_student_name'):
+        from handlers.students import handle_updating_student_name
+        return await handle_updating_student_name(update, context)
+    elif context.user_data.get('update_student_surname'):
+        from handlers.students import handle_updating_student_surname
+        return await handle_updating_student_surname(update, context)
+    elif context.user_data.get('update_student_price'):
+        from handlers.students import handle_updating_student_price
+        return await handle_updating_student_price(update, context)
+    elif context.user_data.get('update_student_payment_frequency'):
+        from handlers.students import handle_updating_student_payment_frequency
+        return await handle_updating_student_payment_frequency(update, context)
+    elif context.user_data.get('student_update_done'):
+        from handlers.students import handle_student_update_done
+        return await handle_student_update_done(update, context)
         
     elif text == 'EARNINGS':
         from handlers.earnings import handle_earnings_menu
