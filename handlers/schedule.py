@@ -353,7 +353,13 @@ async def handle_lesson_details_menu(update: Update, context: ContextTypes.DEFAU
         return
     elif text == 'CANCEL LESSON':
         #TODO: Implement cancel lesson logic here
-        await update.message.reply_text("Cancelling lesson... (Feature not implemented yet)",
+        from database.lessons.crud import delete_lesson
+        selected_lesson_text = context.user_data.get('selected_lesson', '')
+        logger.info(f"Cancelling lesson: {selected_lesson_text}")
+        lesson_id = int(selected_lesson_text.split()[0])
+        delete_lesson(lesson_id)
+
+        await update.message.reply_text(f"Lesson {lesson_id} for {selected_lesson_text.split()[2]} at {selected_lesson_text.split()[4]} has been cancelled.",
             reply_markup=ReplyKeyboardMarkup(earnings_keyboard['tutor'], resize_keyboard=True))
         context.user_data.pop('in_lesson_details_menu', None)
         context.user_data['in_earnings_menu'] = True
