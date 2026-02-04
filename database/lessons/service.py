@@ -1,9 +1,10 @@
 from datetime import datetime, timedelta
 from calendar import monthrange
 from database import db
-from database.lessons.crud import create_lesson
+from database.lessons.crud import create_lesson, get_lesson
 from database.models import Lessons, Schedules, Students
 from database.models import Lessons
+from database.students.crud import get_student
 from utils.config import Settings
 
 logger = Settings.LOGGER
@@ -129,7 +130,7 @@ def get_lessons_by_period(period: str):
     
     try:
         session = db.get_session()
-        lessons = session.query(Lessons).filter(Lessons.date >= start, Lessons.date < end).order_by(Lessons.date).all()
+        lessons = session.query(Lessons).filter(Lessons.date >= start, Lessons.date < end, Lessons.complited == False).order_by(Lessons.date).all()
         logger.info(f"Retrieved {len(lessons)} lessons for period '{period}'")
         
         # Debug: show what lessons were found
@@ -169,3 +170,53 @@ def get_lessons_with_student_info(period: str):
         raise
     finally:
         session.close()     
+
+def get_student_by_lesson(lesson_id: int):
+    try:
+        session = db.get_session()
+        lesson = session.query(Lessons.id, 
+                               Lessons.schedule_id,
+                               Students.id, 
+                               Students.name, 
+                               Students.surname,
+                               Students.lesson_price,
+                               Students.payment_frequency,
+                               Students.balance).join(
+                                   Schedules, Lessons.schedule_id == Schedules.id
+        ).join(Students, Students.id == Schedules.student_id).filter(Lessons.id == lesson_id).first()
+        logger.info(f"Retrieved student info for lesson_id={lesson_id}")
+        return lesson
+    except Exception as e:
+        logger.error(f"Error getting student for lesson_id={lesson_id}: {e}")
+        raise e
+
+def complited_lesson(lesson_id: int):
+    try:
+        session = db.get_session()
+        lesson_info = get_student_by_lesson(lesson_id)
+        if not lesson_info:
+            logger.error(f"No lesson found with id={lesson_id}")
+            return None
+        lesson = get_lesson(lesson_id)
+        student = get_student(lesson_info[2])
+        if lesson and student:
+            lesson.complited = True
+            if student.balance >= student.lesson_price:
+                student.balance -= student.lesson_price
+                lesson.paid = True
+                logger.info(f"Lesson id={lesson_id} marked as completed and paid.")
+            else:
+                student.balance -= student.lesson_price
+                lesson.paid = False
+                logger.info(f"Lesson id={lesson_id} marked as completed but not paid due to insufficient balance.")
+            session.merge(lesson)
+            session.merge(student)
+            session.commit()
+            return lesson, student
+        else:
+            logger.error(f"Lesson or student not found for lesson_id={lesson_id}")
+            return None
+    except Exception as e:
+        session.rollback()
+        logger.error(f"Error marking lesson as completed for lesson_id={lesson_id}: {e}")
+        raise e

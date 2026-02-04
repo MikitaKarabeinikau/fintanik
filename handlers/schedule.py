@@ -279,8 +279,7 @@ async def handle_schedule_view_menu(update: Update, context: ContextTypes.DEFAUL
             await update.message.reply_text(f"No lessons found for the period: {period}.",
                 reply_markup=ReplyKeyboardMarkup(earnings_keyboard['schedule_period'], resize_keyboard=True))
             return
-        
-        lessons_keyboard = [[KeyboardButton(f" {lesson[1].id} {lesson[1].name} - {lesson[0].date.strftime('%Y-%m-%d %H:%M')}")] for lesson in lessons]
+        lessons_keyboard = [[KeyboardButton(f" {lesson[0].id} {lesson[1].id} {lesson[1].name} - {lesson[0].date.strftime('%Y-%m-%d %H:%M')}")] for lesson in lessons]
         lessons_keyboard.append([KeyboardButton(f"{emoji('BACK')} BACK")])
         await update.message.reply_text(
             f"📅 Lessons for the period: {period}",
@@ -292,6 +291,7 @@ async def handle_schedule_view_menu(update: Update, context: ContextTypes.DEFAUL
 
 async def handle_lessons_schedule_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
+    context.user_data['selected_student_id'] = text.split()[1]  # Store student id 
     context.user_data['selected_lesson'] = text
     if text == f"{emoji('BACK')} BACK":
         # Go back to schedule view menu
@@ -317,8 +317,11 @@ async def handle_lesson_details_menu(update: Update, context: ContextTypes.DEFAU
         context.user_data['in_schedule_lessons_menu'] = True
         selected_period = context.user_data.get('selected_period', 'TODAY')
         from database.lessons.service import get_lessons_with_student_info
+        
         lessons = get_lessons_with_student_info(selected_period.lower())
-        lessons_keyboard = [[KeyboardButton(f" {lesson[1].id} {lesson[1].name} - {lesson[0].date.strftime('%Y-%m-%d %H:%M')}")] for lesson in lessons]
+        logger.info(f"Retrieved {len(lessons)} lessons for period '{selected_period}'")
+        logger.info(f"Lessons: {lessons}")
+        lessons_keyboard = [[KeyboardButton(f" {lesson[0].id} {lesson[1].name} - {lesson[0].date.strftime('%Y-%m-%d %H:%M')}")] for lesson in lessons]
         lessons_keyboard.append([KeyboardButton(f"{emoji('BACK')} BACK")])
         await update.message.reply_text(
             f"📅 Lessons for the period: {selected_period}",
@@ -326,11 +329,20 @@ async def handle_lesson_details_menu(update: Update, context: ContextTypes.DEFAU
         )
         return
     elif text == 'COMPLETED':
-        #TODO: Mark lesson as completed in DB. Write the logic here.        
-        await update.message.reply_text("Marking lesson as completed... (Feature not implemented yet)",
+        #TODO: Mark lesson as completed in DB. Write the logic here.  
+        from database.lessons.service import complited_lesson
+        selected_lesson_text = context.user_data.get('selected_lesson', '')
+        logger.info(f"Marking lesson as completed: {selected_lesson_text}")
+        lesson_id = int(selected_lesson_text.split()[0])
+        complited_lesson(lesson_id)
+        from database.students.services import get_student_balance_info
+        response = get_student_balance_info(context.user_data.get('selected_student_id'))
+        await update.message.reply_text(f"{response}",
             reply_markup=ReplyKeyboardMarkup(earnings_keyboard['tutor'], resize_keyboard=True))
         context.user_data.pop('in_lesson_details_menu', None)
         context.user_data['in_earnings_menu'] = True
+        context.user_data.pop('selected_lesson', None)
+        context.user_data.pop('selected_student_id', None)
         return
     elif text == 'CHANGE TERM':
         #TODO: Implement changing term logic here

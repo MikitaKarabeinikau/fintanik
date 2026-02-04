@@ -13,7 +13,7 @@ Lessons:
 from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Boolean
 from sqlalchemy.orm import relationship
 from database import db
-from database.models import Lessons
+from database.models import Lessons, Schedules, Students
 from datetime import datetime
 from utils.config import Settings
 
@@ -37,6 +37,7 @@ def create_lesson(schedule_id: int, date: datetime, paid: bool = False, complite
         logger.error(f"Error creating lesson: {e}")
         raise e
     
+    
 def get_lesson(lesson_id: int) -> Lessons:
     try:
         session = db.get_session()
@@ -45,7 +46,10 @@ def get_lesson(lesson_id: int) -> Lessons:
     except Exception as e:
         logger.error(f"Error getting lesson with id={lesson_id}: {e}")
         raise e
+
+
     
+
 def get_all_lessons_by_day(date: datetime):
     try:
         session = db.get_session()
