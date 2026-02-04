@@ -159,6 +159,10 @@ async def handle_main_menu_button(update: Update, context: ContextTypes.DEFAULT_
     elif context.user_data.get('in_updating_boundary_time'):
         from handlers.terms import handle_updating_boundary_time
         return await handle_updating_boundary_time(update, context)
+    elif context.user_data.get('in_schedule_lessons_menu'):
+        from handlers.schedule import handle_lessons_schedule_menu
+        return await handle_lessons_schedule_menu(update, context)
+        
     elif text == 'EARNINGS':
         from handlers.earnings import handle_earnings_menu
         return await handle_earnings_menu(update, context)
@@ -183,7 +187,9 @@ async def handle_main_menu_button(update: Update, context: ContextTypes.DEFAULT_
     elif context.user_data.get('in_lessons_schedule_menu'):
         from handlers.schedule import handle_lessons_schedule_menu
         return await handle_lessons_schedule_menu(update, context)
-    
+    elif context.user_data.get('in_lesson_details_menu'):
+        from handlers.schedule import handle_lesson_details_menu
+        return await handle_lesson_details_menu(update, context)
     
     elif text == f"{emoji('SETTINGS')} SETTINGS":
         from commands.settings import settings_command

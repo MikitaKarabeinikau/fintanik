@@ -262,8 +262,19 @@ async def handle_schedule_view_menu(update: Update, context: ContextTypes.DEFAUL
         context.user_data['in_earnings_menu'] = True
         keyboard = earnings_keyboard['tutor']
     else:
+        # Map button text to period values
+        period_map = {
+            'TODAY': 'today',
+            'THIS WEEK': 'week',
+            'NEXT WEEK': 'next_week',
+            'THIS MONTH': 'month',
+            'NEXT MONTH': 'next_month'  # This needs to be added to service.py too
+        }
+        
+        period_key = period_map.get(period, period.lower())
+        
         from database.lessons.service import get_lessons_with_student_info
-        lessons = get_lessons_with_student_info(period)
+        lessons = get_lessons_with_student_info(period_key)
         if not lessons:
             await update.message.reply_text(f"No lessons found for the period: {period}.",
                 reply_markup=ReplyKeyboardMarkup(earnings_keyboard['schedule_period'], resize_keyboard=True))
@@ -291,7 +302,54 @@ async def handle_lessons_schedule_menu(update: Update, context: ContextTypes.DEF
         await update.message.reply_text("🗓️ Schedule Management selected. Here you can manage your tutoring schedule.", reply_markup=reply_markup)
         return
     
-    await update.message.reply_text(f"Lesson Details selected. This feature is under development. \n{text}")
+    keyboard = earnings_keyboard['lesson']
+    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+    await update.message.reply_text(f"Lesson Details selected.\n{text}", reply_markup=reply_markup)
+    context.user_data.pop('in_schedule_lessons_menu', None)
+    context.user_data['in_lesson_details_menu'] = True
+    return
+
+async def handle_lesson_details_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text
+    if text == f"{emoji('BACK')} BACK":
+        # Go back to lessons list
+        context.user_data.pop('in_lesson_details_menu', None)
+        context.user_data['in_schedule_lessons_menu'] = True
+        selected_period = context.user_data.get('selected_period', 'TODAY')
+        from database.lessons.service import get_lessons_with_student_info
+        lessons = get_lessons_with_student_info(selected_period.lower())
+        lessons_keyboard = [[KeyboardButton(f" {lesson[1].id} {lesson[1].name} - {lesson[0].date.strftime('%Y-%m-%d %H:%M')}")] for lesson in lessons]
+        lessons_keyboard.append([KeyboardButton(f"{emoji('BACK')} BACK")])
+        await update.message.reply_text(
+            f"📅 Lessons for the period: {selected_period}",
+            reply_markup=ReplyKeyboardMarkup(lessons_keyboard, resize_keyboard=True)
+        )
+        return
+    elif text == 'COMPLETED':
+        #TODO: Mark lesson as completed in DB. Write the logic here.        
+        await update.message.reply_text("Marking lesson as completed... (Feature not implemented yet)",
+            reply_markup=ReplyKeyboardMarkup(earnings_keyboard['tutor'], resize_keyboard=True))
+        context.user_data.pop('in_lesson_details_menu', None)
+        context.user_data['in_earnings_menu'] = True
+        return
+    elif text == 'CHANGE TERM':
+        #TODO: Implement changing term logic here
+        await update.message.reply_text("Changing lesson term... (Feature not implemented yet)",
+            reply_markup=ReplyKeyboardMarkup(earnings_keyboard['tutor'], resize_keyboard=True))
+        context.user_data.pop('in_lesson_details_menu', None)
+        context.user_data['in_earnings_menu'] = True
+        return
+    elif text == 'CANCEL LESSON':
+        #TODO: Implement cancel lesson logic here
+        await update.message.reply_text("Cancelling lesson... (Feature not implemented yet)",
+            reply_markup=ReplyKeyboardMarkup(earnings_keyboard['tutor'], resize_keyboard=True))
+        context.user_data.pop('in_lesson_details_menu', None)
+        context.user_data['in_earnings_menu'] = True
+        return
+    # Here you would handle other lesson detail actions like marking as paid/completed
+    await update.message.reply_text("Feature not implemented yet.", 
+        reply_markup=ReplyKeyboardMarkup(earnings_keyboard['lesson'], resize_keyboard=True))
+    return
 
 # ======================================================
 # UPDATING SCHEDULE LESSONS MENU HANDLER

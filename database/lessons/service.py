@@ -129,7 +129,7 @@ def get_lessons_by_period(period: str):
     
     try:
         session = db.get_session()
-        lessons = session.query(Lessons).filter(Lessons.date >= start, Lessons.date < end).all()
+        lessons = session.query(Lessons).filter(Lessons.date >= start, Lessons.date < end).order_by(Lessons.date).all()
         logger.info(f"Retrieved {len(lessons)} lessons for period '{period}'")
         
         # Debug: show what lessons were found
