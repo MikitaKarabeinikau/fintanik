@@ -32,12 +32,15 @@ def create_term(weekday: str, start_time: str, end_time: str) -> Terms:
 
 def get_all_terms() -> list[Terms]:
     try:
-        terms = Terms.query.all()
+        session = db.get_session()
+        terms = session.query(Terms).order_by(Terms.id).all()
         logger.info(f"Retrieved all terms. Total: {len(terms)}")
         return terms
     except Exception as e:
         logger.error(f"Error retrieving terms: {e}")
         raise
+    finally:
+        session.close()
 
 def get_terms_boundaries(weekday: str) -> tuple[str, str]:
     try:

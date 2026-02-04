@@ -149,7 +149,16 @@ async def handle_main_menu_button(update: Update, context: ContextTypes.DEFAULT_
     elif context.user_data.get('student_update_done'):
         from handlers.students import handle_student_update_done
         return await handle_student_update_done(update, context)
-        
+    
+    elif context.user_data.get('in_change_terms_boundaries'):
+        from handlers.terms import handle_change_terms_boundaries
+        return await handle_change_terms_boundaries(update, context)
+    elif context.user_data.get('in_selecting_boundary'):
+        from handlers.terms import handle_selecting_boundary
+        return await handle_selecting_boundary(update, context)
+    elif context.user_data.get('in_updating_boundary_time'):
+        from handlers.terms import handle_updating_boundary_time
+        return await handle_updating_boundary_time(update, context)
     elif text == 'EARNINGS':
         from handlers.earnings import handle_earnings_menu
         return await handle_earnings_menu(update, context)

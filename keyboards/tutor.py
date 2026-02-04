@@ -95,6 +95,11 @@ earnings_keyboard = {
         [KeyboardButton(f'CHANGE TERMS BOUNDARIES')],
         [KeyboardButton(f'{emoji("BACK")} BACK')],
     ],
+    'terms_with_boundaries': [
+        [KeyboardButton(f'FREE TERMS')],
+        [KeyboardButton(f'CHANGE TERMS BOUNDARIES')],
+        [KeyboardButton(f'{emoji("BACK")} BACK')],
+    ],
     'free_terms_period': [
         [KeyboardButton(f'TODAY')],
         [KeyboardButton(f'THIS WEEK')],
