@@ -240,7 +240,7 @@ async def handle_schedule_time_selection(update: Update, context: ContextTypes.D
     # Here you would typically save the lesson to the database
     from database.schedule.crud import create_schedule
     lesson_data = context.user_data['lesson']
-    student_id = context.user_data.get('selected_student')[0]
+    student_id = context.user_data.get('selected_student').split()[0]
     schedule = create_schedule(student_id=student_id, weekday=lesson_data['day'], time=lesson_data['time'])
     create_lessons_from_schedule(schedule_id=schedule.id, weekday=lesson_data['day'], time_str=lesson_data['time'])
     await update.message.reply_text(
@@ -259,8 +259,11 @@ async def handle_schedule_view_menu(update: Update, context: ContextTypes.DEFAUL
     if period == f"{emoji('BACK')} BACK":
         # Go back to tutor menu
         context.user_data.pop('in_schedule_view_menu', None)
+        
         context.user_data['in_earnings_menu'] = True
         keyboard = earnings_keyboard['tutor']
+        return_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+        await update.message.reply_text("💰 Earnings Menu:", reply_markup=return_markup)
     else:
         # Map button text to period values
         period_map = {
@@ -268,7 +271,7 @@ async def handle_schedule_view_menu(update: Update, context: ContextTypes.DEFAUL
             'THIS WEEK': 'week',
             'NEXT WEEK': 'next_week',
             'THIS MONTH': 'month',
-            'NEXT MONTH': 'next_month'  # This needs to be added to service.py too
+            'NEXT MONTH': 'next_month'  
         }
         
         period_key = period_map.get(period, period.lower())
@@ -346,10 +349,10 @@ async def handle_lesson_details_menu(update: Update, context: ContextTypes.DEFAU
         return
     elif text == 'CHANGE TERM':
         #TODO: Implement changing term logic here
-        await update.message.reply_text("Changing lesson term... (Feature not implemented yet)",
-            reply_markup=ReplyKeyboardMarkup(earnings_keyboard['tutor'], resize_keyboard=True))
+        context.user_data['in_change_existed_lesson_term_menu'] = True
+        await update.message.reply_text("Do you want nearest free terms in next 2 weeks or set a new term manually?",
+            reply_markup=ReplyKeyboardMarkup(earnings_keyboard['change_lesson_term'], resize_keyboard=True))
         context.user_data.pop('in_lesson_details_menu', None)
-        context.user_data['in_earnings_menu'] = True
         return
     elif text == 'CANCEL LESSON':
         #TODO: Implement cancel lesson logic here
@@ -416,3 +419,154 @@ async def handle_updating_schedule_time_selection(update: Update, context: Conte
         context.user_data.pop('selected_lesson_id', None)
 
     return
+
+async def handle_change_existed_lesson_term_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text
+    if text == f"{emoji('BACK')} BACK":
+        # Go back to lesson details menu
+        context.user_data.pop('in_change_existed_lesson_term_menu', None)
+        context.user_data['in_lesson_details_menu'] = True
+        keyboard = earnings_keyboard['lesson']
+        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+        await update.message.reply_text("Returning to Lesson Details menu.", reply_markup=reply_markup)
+        return
+    
+    elif text == 'FREE TERMS':
+        terms = get_free_terms_for_next_two_weeks()
+        keyboard = []
+        if terms[0] != []:
+            for term in terms[0]:
+                keyboard.append([KeyboardButton(term)])
+        if terms[1] != []:
+            for term in terms[1]:
+                keyboard.append([KeyboardButton(term)])
+        keyboard.append([KeyboardButton(f"{emoji('BACK')} BACK")])
+        context.user_data.pop('in_change_existed_lesson_term_menu', None)
+        context.user_data['free_term_update_selecting'] = True
+        await update.message.reply_text(f"Please select a free term from the options below:",
+            reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True))
+        return
+    
+    elif text == 'SET NEW TERM':
+        return
+    handle_change_existed_lesson_term_menu
+
+
+async def handle_free_term_update_selecting(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    new_date_str = update.message.text
+    if new_date_str == f"{emoji('BACK')} BACK":
+        # Go back to change existed lesson term menu
+        context.user_data.pop('free_term_update_selecting', None)
+        context.user_data['in_change_existed_lesson_term_menu'] = True
+        keyboard = earnings_keyboard['change_lesson_term']
+        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+        await update.message.reply_text("Returning to Change Lesson Term menu.", reply_markup=reply_markup)
+        return
+    from database.lessons.crud import get_lesson, update_lesson
+    lesson = get_lesson(int(context.user_data.get('selected_lesson').split()[0]))
+    date_time = new_date_str.split()[1] + ' ' + new_date_str.split()[2]
+    new_date = datetime.strptime(date_time, '%Y-%m-%d %H:%M')
+    lesson.date = new_date
+    try:
+        update_lesson(lesson)
+        logger.info(f"Updated lesson ID {lesson.id} to new date {new_date}")
+        context.user_data.pop('free_term_update_selecting', None)
+        await update.message.reply_text(f"✅ Lesson date updated to {new_date}.",
+            reply_markup=ReplyKeyboardMarkup(earnings_keyboard['tutor'], resize_keyboard=True))
+        context.user_data.pop('selected_lesson', None)
+    except Exception as e:
+        logger.error(f"Error updating lesson ID {lesson.id} to new date {new_date}: {e}")
+        await update.message.reply_text(f"❌ Failed to update lesson date.",
+            reply_markup=ReplyKeyboardMarkup(earnings_keyboard['tutor'], resize_keyboard=True))
+        context.user_data.pop('free_term_update_selecting', None)
+        context.user_data.pop('selected_lesson', None)
+    return
+
+def get_free_terms_for_next_two_weeks():
+    """
+    Get all free time slots for the next two weeks, separated into weekdays and weekends.
+    Considers:
+    1. Existing lessons (to avoid double-booking)
+    2. Work hour boundaries for each day
+    3. Student can't have two lessons in one day
+    
+    Weekend = Days with 00:00-00:00 boundaries (flexible/special days)
+    Weekdays = Days with actual work hour boundaries
+    
+    Returns:
+        tuple: (weekday_terms, weekend_terms) where each is a list of strings
+               Format: "Weekday YYYY-MM-DD HH:MM"
+    """
+    from database.lessons.crud import get_all_lessons_by_day
+    from database.models import Terms
+    from database import db
+    from datetime import time as time_obj
+    
+    weekday_terms = []
+    weekend_terms = []
+    today = datetime.now()
+    lesson_duration = timedelta(hours=1)
+    session = db.get_session()
+    
+    # Define default weekend availability (since boundaries are 00:00-00:00)
+    default_weekend_hours = (time_obj(12, 0, 0), time_obj(19, 0, 0))  # 12:00-19:00
+    
+    logger.info(f"Starting free terms search for next 14 days from {today.date()}")
+    
+    for day_offset in range(14):
+        current_day = today + timedelta(days=day_offset)
+        weekday_str = current_day.strftime('%A')
+        
+        # Query term for this weekday
+        term = session.query(Terms).filter_by(weekday=weekday_str).first()
+        if not term:
+            continue
+        
+        # Check if student already has a lesson this day
+        existing_lessons = get_all_lessons_by_day(current_day)
+        if len(existing_lessons) > 0:
+            logger.info(f"Student already has lesson(s) on {current_day.date()}, skipping")
+            continue
+        
+        # Determine if this is weekend (00:00-00:00 boundaries)
+        is_weekend = (term.start_time == time_obj(0, 0, 0) and term.end_time == time_obj(0, 0, 0))
+        
+        if is_weekend:
+            # Use default weekend hours for flexibility
+            work_hours = default_weekend_hours
+            logger.info(f"{weekday_str} ({current_day.date()}) is weekend day, using {work_hours[0]}-{work_hours[1]}")
+        else:
+            # Use actual work hours from boundaries
+            work_hours = (term.start_time, term.end_time)
+            logger.info(f"{weekday_str} ({current_day.date()}) is weekday, using {work_hours[0]}-{work_hours[1]}")
+        
+        # Generate time slots
+        start_time = datetime.combine(current_day.date(), work_hours[0])
+        end_time = datetime.combine(current_day.date(), work_hours[1])
+        
+        current_time = start_time
+        day_slots = []
+        
+        while current_time + lesson_duration <= end_time + lesson_duration:
+            lesson_end = current_time + lesson_duration
+            
+            if lesson_end > end_time + lesson_duration:
+                break
+            
+            # Format: "Weekday YYYY-MM-DD HH:MM"
+            formatted_slot = f"{weekday_str} {current_time.strftime('%Y-%m-%d %H:%M')}"
+            day_slots.append(formatted_slot)
+            
+            current_time += timedelta(minutes=30)
+        
+        # Add to appropriate array
+        if is_weekend:
+            weekend_terms.extend(day_slots)
+            logger.info(f"Added {len(day_slots)} weekend slots for {weekday_str}")
+        else:
+            weekday_terms.extend(day_slots)
+            logger.info(f"Added {len(day_slots)} weekday slots for {weekday_str}")
+    
+    logger.info(f"Total: {len(weekday_terms)} weekday terms, {len(weekend_terms)} weekend terms")
+    return (weekday_terms, weekend_terms)
+    

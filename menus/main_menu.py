@@ -162,7 +162,14 @@ async def handle_main_menu_button(update: Update, context: ContextTypes.DEFAULT_
     elif context.user_data.get('in_schedule_lessons_menu'):
         from handlers.schedule import handle_lessons_schedule_menu
         return await handle_lessons_schedule_menu(update, context)
-        
+    elif context.user_data.get('in_change_existed_lesson_term_menu'):
+        from handlers.schedule import handle_change_existed_lesson_term_menu
+        return await handle_change_existed_lesson_term_menu(update, context)
+    elif context.user_data.get('free_term_update_selecting'):
+        from handlers.schedule import handle_free_term_update_selecting
+        return await handle_free_term_update_selecting(update, context)
+
+
     elif text == 'EARNINGS':
         from handlers.earnings import handle_earnings_menu
         return await handle_earnings_menu(update, context)

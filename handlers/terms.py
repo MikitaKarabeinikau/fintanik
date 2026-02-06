@@ -14,21 +14,7 @@ def get_boundaries_info_table():
     if not boundaries:
         return "No term boundaries set."
     
-    # Calculate max width for schedule column
-    max_schedule_width = len("Schedule")
-    for term in boundaries:
-        start = str(term.start_time) if hasattr(term.start_time, 'strftime') else term.start_time
-        end = str(term.end_time) if hasattr(term.end_time, 'strftime') else term.end_time
-        schedule_str = f"{start} - {end}"
-        max_schedule_width = max(max_schedule_width, len(schedule_str))
-    
-    max_schedule_width += 2
-    
     response = "<b>📅 Term Boundaries:</b>\n\n"
-    response += "<pre>"
-    response += f"┌─────────────┬─{'─' * max_schedule_width}─┬────────────┐\n"
-    response += f"│     Day     │ {'Schedule':<{max_schedule_width}} │   Status   │\n"
-    response += f"├─────────────┼─{'─' * max_schedule_width}─┼────────────┤\n"
     
     for term in boundaries:
         start = str(term.start_time) if hasattr(term.start_time, 'strftime') else term.start_time
@@ -36,15 +22,13 @@ def get_boundaries_info_table():
         
         if start == "00:00:00" and end == "00:00:00":
             schedule_str = "00:00 - 00:00"
-            status = "Weekend"
+            status = "🔴 Weekend"
         else:
             schedule_str = f"{start} - {end}"
-            status = "Working"
+            status = "✅ Working"
         
-        response += f"│ {term.weekday:<11} │ {schedule_str:<{max_schedule_width}} │ {status:<10} │\n"
+        response += f"<b>{term.weekday}:</b> {schedule_str}\n{status}\n\n"
     
-    response += f"└─────────────┴─{'─' * max_schedule_width}─┴────────────┘"
-    response += "</pre>"
     return response
 
 def get_free_terms_table():
@@ -60,35 +44,31 @@ def get_free_terms_table():
     }
     for day in terms.keys():
         free_slots = get_free_terms(day)
-        for i in free_slots:
-            if i == '00:00':
-                continue
-            for slot in i:
-                terms[day].append(slot)
-    # First, calculate the maximum width needed for the slots column
-    max_slot_width = len("Free Slots")
-    for day, slots in terms.items():
-        if slots:
-            slots_str = ', '.join(slots)
-            max_slot_width = max(max_slot_width, len(slots_str))
-
-    # Add some padding
-    max_slot_width += 2
-
+        # Handle both keyboard format (2D list) and simple list format (1D list)
+        for item in free_slots:
+            if isinstance(item, list):
+                # It's a row from keyboard layout
+                for slot in item:
+                    if slot != '00:00':
+                        terms[day].append(slot)
+            else:
+                # It's a simple string
+                if item != '00:00':
+                    terms[day].append(item)
     response = "<b>📅 Free Terms:</b>\n\n"
-    response += "<pre>"
-    response += f"┌─────────────┬─{'─' * max_slot_width}─┐\n"
-    response += f"│     Day     │ {'Free Slots':<{max_slot_width}} │\n"
-    response += f"├─────────────┼─{'─' * max_slot_width}─┤\n"
+    
+    has_terms = False
     for day, slots in terms.items():
-        if slots == []:
+        if not slots:
             continue
-        slots_str = ', '.join(slots) if slots else 'No free terms'
-        response += f"│ {day:<11} │ {slots_str:<{max_slot_width}} │\n"
-    response += f"└─────────────┴─{'─' * max_slot_width}─┘"
-    response += "</pre>"
+        has_terms = True
+        slots_str = ', '.join(slots)
+        response += f"<b>{day}:</b>\n{slots_str}\n\n"
+    
+    if not has_terms:
+        response += "No free terms available."
+    
     return response
-
 async def start_set_terms_flow(update: Update, context: ContextTypes.DEFAULT_TYPE):
     from database.terms.crud import get_unset_terms
     unset_terms = get_unset_terms()
@@ -141,7 +121,7 @@ async def handle_terms_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("Please select the term you want to change.",reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True))
         return
     else:
-        message = get_boundaries_info_table() + "\n\nDEVELOP WARNING MESSAGE HERE"
+        message = get_boundaries_info_table() 
         await update.message.reply_text(message, parse_mode='HTML')
         return
 

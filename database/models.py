@@ -1,6 +1,6 @@
 from decimal import Decimal
-from sqlalchemy import Column, Float, ForeignKey, Integer, String, DateTime, Boolean, Text, Table, Time
-from sqlalchemy.orm import relationship
+from sqlalchemy import Column, Float, ForeignKey, Integer, String, DateTime, Boolean, Text, Table, Time 
+from sqlalchemy.orm import relationship , backref
 from sqlalchemy.ext.declarative import declarative_base
 from datetime import datetime
 
@@ -140,7 +140,7 @@ class Payments(Base):
     amount = Column(Float, nullable=False)
     date = Column(DateTime, default=datetime.utcnow)
 
-    student = relationship("Students", backref="payments")
+    student = relationship("Students", backref=backref("payments", cascade="all, delete-orphan"))
 
     def __repr__(self):
         return f"<Payment(student_id={self.student_id}, amount={self.amount}, date={self.date})>"
