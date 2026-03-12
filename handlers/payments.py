@@ -11,6 +11,8 @@ logger = Settings.LOGGER
 WAITING_FOR_PAYMENT_AMOUNT = 100
 WAITING_FOR_PAYMENT_DATE = 101
 
+
+
 async def handle_payment_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle date picker callbacks for credit flow"""
     query = update.callback_query

@@ -169,7 +169,6 @@ async def handle_main_menu_button(update: Update, context: ContextTypes.DEFAULT_
         from handlers.schedule import handle_free_term_update_selecting
         return await handle_free_term_update_selecting(update, context)
 
-
     elif text == 'EARNINGS':
         from handlers.earnings import handle_earnings_menu
         return await handle_earnings_menu(update, context)

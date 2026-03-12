@@ -64,6 +64,11 @@ async def handle_earnings_menu(update: Update, context: ContextTypes.DEFAULT_TYP
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
         await update.message.reply_text("🏠 Main Menu:", reply_markup=reply_markup)
         return
+    elif text == f"PAYMENTS":
+        from utils.info import get_payments_overview
+        message = get_payments_overview()
+        await update.message.reply_text(f"{message}",parse_mode='HTML', reply_markup=ReplyKeyboardMarkup(earnings_keyboard['tutor'], resize_keyboard=True))
+        return
     else:
         await update.message.reply_text("Unknown option selected.")
         return

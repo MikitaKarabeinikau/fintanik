@@ -12,11 +12,14 @@ from menus.account_view.view_menu import dates_keyboard
 from database.transactions.services import get_sorted_categories_by_popularity, get_sorted_shops_by_popularity
 from utils.config import Settings
 from utils.utils import parse_date_range
+# Update the conversation states at the top (add these new states)
 WAITING_FOR_AMOUNT = 1 
 WAITING_FOR_NAME = 2
 WAITING_FOR_CATEGORY = 3
 WAITING_FOR_SHOP_NAME = 4
 WAITING_FOR_DATE = 5
+WAITING_FOR_MONTH_SELECTION = 11  # New state
+WAITING_FOR_DAY_SELECTION = 12   # New state
 
 WAITING_FOR_AMOUNT_UPDATE = 6
 WAITING_FOR_NAME_UPDATE = 7
@@ -24,6 +27,191 @@ WAITING_FOR_CATEGORY_UPDATE = 8
 WAITING_FOR_SHOP_NAME_UPDATE = 9
 WAITING_FOR_DATE_UPDATE = 10
 
+# Add helper function to get month selection keyboard
+def get_month_selection_keyboard():
+    """Create month selection keyboard for current and next month"""
+    today = datetime.datetime.now()
+    current_month = today.strftime("%B %Y")  # e.g., "March 2026"
+    next_month = (today.replace(day=1) + datetime.timedelta(days=32)).replace(day=1).strftime("%B %Y")
+    
+    keyboard = [
+        [KeyboardButton(current_month)],
+        [KeyboardButton(next_month)],
+        [KeyboardButton(f"{emoji('BACK')} BACK")]
+    ]
+    return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+
+# Add helper function to get day selection keyboard
+def get_day_selection_keyboard(year, month):
+    """Create day selection keyboard in grid layout (7 columns) from today back to day 1"""
+    today = datetime.datetime.now()
+    
+    # If selected month is current month, show from today back to day 1
+    if year == today.year and month == today.month:
+        start_day = today.day
+    # If selected month is next month, show days from beginning
+    else:
+        start_day = min(today.day, (datetime.datetime(year, month, 1) + datetime.timedelta(days=32)).replace(day=1).day - 1)
+    
+    # Create a list of days from start_day down to 1
+    days = list(range(start_day, 0, -1))
+    
+    # Create grid keyboard (7 columns per row)
+    keyboard = []
+    row = []
+    for day in days:
+        row.append(KeyboardButton(str(day)))
+        if len(row) == 7:
+            keyboard.append(row)
+            row = []
+    
+    # Add remaining days in the last row
+    if row:
+        keyboard.append(row)
+    
+    # Add BACK button at the end
+    keyboard.append([KeyboardButton(f"{emoji('BACK')} BACK")])
+    
+    return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+
+async def receive_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text.strip()
+    today = datetime.datetime.now()
+    
+    if text == "Today":
+        context.user_data['transaction']['date'] = today
+        return await transaction_flow(update, context, action_key=None, transaction=context.user_data['transaction'])
+    
+    elif text == "Yesterday":
+        yesterday = today - datetime.timedelta(days=1)
+        context.user_data['transaction']['date'] = yesterday
+        return await transaction_flow(update, context, action_key=None, transaction=context.user_data['transaction'])
+    
+    elif text == "Another":
+        # Check if today is day 5 or less
+        if today.day <= 5:
+            # Show month selection
+            await update.message.reply_text(
+                "Please select a month:",
+                reply_markup=get_month_selection_keyboard()
+            )
+            return WAITING_FOR_MONTH_SELECTION
+        else:
+            # Skip month selection, go directly to day selection for current month
+            # Store current month and year for day selection
+            context.user_data['selected_year'] = today.year
+            context.user_data['selected_month'] = today.month
+            await update.message.reply_text(
+                "Please select a day:",
+                reply_markup=get_day_selection_keyboard(today.year, today.month)
+            )
+            return WAITING_FOR_DAY_SELECTION
+    
+    elif text == f"{emoji('BACK')} BACK":
+        prev = transaction_actions['date']['prev']
+        context.user_data['transaction'][prev] = None
+        return await transaction_flow(update, context, action_key=prev, transaction=context.user_data['transaction'])
+    
+    else:
+        # Try to parse as date format (for backward compatibility)
+        try:
+            date_obj = datetime.datetime.strptime(text, "%Y-%m-%d")
+            context.user_data['transaction']['date'] = date_obj
+            return await transaction_flow(update, context, action_key=None, transaction=context.user_data['transaction'])
+        except ValueError:
+            await update.message.reply_text(
+                "❌ Invalid selection. Please choose from the menu:",
+                reply_markup=ReplyKeyboardMarkup(
+                    [[KeyboardButton("Today")], [KeyboardButton("Yesterday")], [KeyboardButton("Another")], [KeyboardButton(f"{emoji('BACK')} BACK")]],
+                    resize_keyboard=True
+                )
+            )
+            return WAITING_FOR_DATE
+
+# Add new handler for month selection
+async def receive_month_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text.strip()
+    
+    if text == f"{emoji('BACK')} BACK":
+        # Go back to date selection
+        await update.message.reply_text(
+            "Please select a date option:",
+            reply_markup=ReplyKeyboardMarkup(
+                [[KeyboardButton("Today")], [KeyboardButton("Yesterday")], [KeyboardButton("Another")], [KeyboardButton(f"{emoji('BACK')} BACK")]],
+                resize_keyboard=True
+            )
+        )
+        return WAITING_FOR_DATE
+    
+    try:
+        # Parse month and year from text (e.g., "March 2026")
+        selected_date = datetime.datetime.strptime(text, "%B %Y")
+        context.user_data['selected_month'] = selected_date.month
+        context.user_data['selected_year'] = selected_date.year
+        
+        # Show day selection for the selected month
+        await update.message.reply_text(
+            f"Please select a day from {text}:",
+            reply_markup=get_day_selection_keyboard(selected_date.year, selected_date.month)
+        )
+        return WAITING_FOR_DAY_SELECTION
+    except ValueError:
+        await update.message.reply_text(
+            "❌ Invalid month selection. Please choose from the menu:",
+            reply_markup=get_month_selection_keyboard()
+        )
+        return WAITING_FOR_MONTH_SELECTION
+
+# Update receive_day_selection to handle just day numbers
+async def receive_day_selection(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text.strip()
+    today = datetime.datetime.now()
+    
+    if text == f"{emoji('BACK')} BACK":
+        # Go back to month selection if we came from there, otherwise back to date selection
+        if today.day <= 5:
+            await update.message.reply_text(
+                "Please select a month:",
+                reply_markup=get_month_selection_keyboard()
+            )
+            return WAITING_FOR_MONTH_SELECTION
+        else:
+            await update.message.reply_text(
+                "Please select a date option:",
+                reply_markup=ReplyKeyboardMarkup(
+                    [[KeyboardButton("Today")], [KeyboardButton("Yesterday")], [KeyboardButton("Another")], [KeyboardButton(f"{emoji('BACK')} BACK")]],
+                    resize_keyboard=True
+                )
+            )
+            return WAITING_FOR_DATE
+    
+    try:
+        # Parse the day number
+        day = int(text)
+        year = context.user_data.get('selected_year', today.year)
+        month = context.user_data.get('selected_month', today.month)
+        
+        # Create the full date
+        date_obj = datetime.datetime(year, month, day)
+        context.user_data['transaction']['date'] = date_obj
+        
+        # Clean up temporary data
+        context.user_data.pop('selected_month', None)
+        context.user_data.pop('selected_year', None)
+        
+        # Complete the transaction
+        return await transaction_flow(update, context, action_key=None, transaction=context.user_data['transaction'])
+    except (ValueError, TypeError):
+        # If invalid day number, show error and redisplay menu
+        year = context.user_data.get('selected_year', today.year)
+        month = context.user_data.get('selected_month', today.month)
+        
+        await update.message.reply_text(
+            "❌ Invalid day selection. Please choose a day from the menu:",
+            reply_markup=get_day_selection_keyboard(year, month)
+        )
+        return WAITING_FOR_DAY_SELECTION
+    
 def get_update_dates_menu():
     return ReplyKeyboardMarkup(dates_keyboard, resize_keyboard=True)
 
@@ -168,27 +356,6 @@ async def receive_shop_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
     next = transaction_actions['shop']['next']
     return await transaction_flow(update, context, action_key=next, transaction=context.user_data['transaction'])
 
-async def receive_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text.strip()
-    if text.upper() == "TODAY":
-        today = datetime.datetime.now()
-        context.user_data['transaction']['date'] = today
-    elif text == f"{emoji('BACK')} BACK":
-        prev = transaction_actions['date']['prev']
-        context.user_data['transaction'][prev] = None
-        return await transaction_flow(update, context, action_key=prev, transaction=context.user_data['transaction'])
-    else:
-        try:
-            date_obj = datetime.datetime.strptime(text, "%Y-%m-%d")
-            context.user_data['transaction']['date'] = date_obj
-            return await transaction_flow(update, context, action_key=None, transaction=context.user_data['transaction'])
-        except ValueError:
-            await update.message.reply_text("❌ Invalid date format. Please enter the date in YYYY-MM-DD format or type TODAY:")
-            return WAITING_FOR_DATE
-    # All data collected, save transaction
-    
-    return await transaction_flow(update, context, action_key=None, transaction=context.user_data['transaction'])
-
 async def ask_for(update: Update, context: ContextTypes.DEFAULT_TYPE, transaction, action_key: str):
     """Ask for the next field in the transaction flow"""
     if action_key == 'name':
@@ -204,7 +371,7 @@ async def ask_for(update: Update, context: ContextTypes.DEFAULT_TYPE, transactio
         reply_markup = get_shop_keyboard(context)
     elif action_key == 'date':
         reply_markup = ReplyKeyboardMarkup(
-            [[KeyboardButton("TODAY")],[KeyboardButton(f"{emoji('BACK')} BACK")]],
+            [[KeyboardButton("Today")], [KeyboardButton("Yesterday")], [KeyboardButton("Another")], [KeyboardButton(f"{emoji('BACK')} BACK")]],
             resize_keyboard=True
         )
     else:

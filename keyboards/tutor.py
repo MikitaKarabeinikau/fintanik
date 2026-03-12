@@ -109,11 +109,7 @@ earnings_keyboard = {
     'free_terms_today': get_free_terms_keyboard('today'),
     'free_terms_week': get_free_terms_keyboard('week'),
     'free_terms_month': get_free_terms_keyboard('month'),
-    'payments': [
-        [KeyboardButton(f'ADD PAYMENT')],
-        [KeyboardButton(f'VIEW PAYMENTS')],
-        [KeyboardButton(f'{emoji("BACK")} BACK')],
-    ],
+
     'back_cancel': [
         [KeyboardButton(f'{emoji("BACK")} BACK')],
         [KeyboardButton(f'{emoji("CANCEL")} CANCEL')],
