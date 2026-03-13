@@ -16,6 +16,23 @@ services:
       timeout: 5s
       retries: 5
 
+  loki:
+    image: grafana/loki:latest
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./loki-config.yml:/etc/loki/local-config.yaml
+      - loki-data:/loki
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3001:3000" # Access at http://your-server:3001
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
+    volumes:
+      - grafana-data:/var/lib/grafana
+
   bot:
     build: .
     container_name: telegram_bot

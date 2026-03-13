@@ -43,3 +43,23 @@ def health_check():
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("web_app:app", host="0.0.0.0", port=8000, reload=True)
+# Database health check endpoint
+@app.get("/health/db")
+def database_health():
+    """Check if database connection is working"""
+    try:
+        session = db.get_session()
+        from database.models import User
+        user_count = session.query(User).count()
+        session.close()
+        return {
+            "status": "ok",
+            "database": "connected",
+            "users": user_count
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "database": "disconnected",
+            "error": str(e)
+        }
