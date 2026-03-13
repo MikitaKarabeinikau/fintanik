@@ -14,3 +14,8 @@ python-telegram-bot==22.5
 SQLAlchemy==2.0.45
 typing_extensions==4.15.0
 APScheduler==3.11.2
+fastapi==0.115.0
+uvicorn[standard]==0.34.0
+pydantic==2.10.5
+python-jose[cryptography]==3.3.0  # For JWT tokens
+passlib[bcrypt]==1.7.4            # For password hashing

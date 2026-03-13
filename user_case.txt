@@ -1,7 +1,0 @@
-[ ] user want to add new transaction 
-
-[ ] user want to change field using buttons to select field 
-
-[ ] user want to see daily, weekly, monthly, yearly transaction statistic
-
-[ ] user want to get daily, weekly, monthly, yearly auto reports  

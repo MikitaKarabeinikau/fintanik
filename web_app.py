@@ -1,0 +1,45 @@
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
+from dotenv import load_dotenv
+from database.db import db
+
+# Load environment variables FIRST
+load_dotenv()
+
+# Lifespan context manager (replaces on_event)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    db.init_db()
+    yield
+    # Shutdown (if needed)
+    # db.close()
+
+# Initialize FastAPI with lifespan
+app = FastAPI(
+    title="Fintanik API",
+    description="Financial tracking API",
+    version="1.0.0",
+    lifespan=lifespan
+)
+
+# CORS - allow frontend to access API
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Change to specific domain in production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Health check endpoint
+@app.get("/")
+def health_check():
+    return {"status": "ok", "message": "Fintanik API is running"}
+
+
+# Run server
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("web_app:app", host="0.0.0.0", port=8000, reload=True)
