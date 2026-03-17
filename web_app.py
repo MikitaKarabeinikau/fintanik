@@ -7,14 +7,12 @@ from database.db import db
 # Load environment variables FIRST
 load_dotenv()
 
-# Lifespan context manager (replaces on_event)
+# Lifespan context manager
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
     db.init_db()
     yield
-    # Shutdown (if needed)
-    # db.close()
 
 # Initialize FastAPI with lifespan
 app = FastAPI(
@@ -24,25 +22,25 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS - allow frontend to access API
+# CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Change to specific domain in production
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Import and include routers
+from web.api import auth
+
+app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 
 # Health check endpoint
 @app.get("/")
 def health_check():
     return {"status": "ok", "message": "Fintanik API is running"}
 
-
-# Run server
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("web_app:app", host="0.0.0.0", port=8000, reload=True)
 # Database health check endpoint
 @app.get("/health/db")
 def database_health():
@@ -63,3 +61,8 @@ def database_health():
             "database": "disconnected",
             "error": str(e)
         }
+
+# Run server
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("web_app:app", host="0.0.0.0", port=8000, reload=True)

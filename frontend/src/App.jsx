@@ -1,27 +1,25 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import Login from './pages/Login';
+import Dashboard from './pages/Dashboard';
+import ProtectedRoute from './components/ProtectedRoute';
 import './App.css';
 
 function App() {
   return (
     <Router>
-      <div className="App">
-        <h1>Fintanik</h1>
-        <p>Financial Management System</p>
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          {/* We'll add more routes here (login, dashboard, etc.) */}
-        </Routes>
-      </div>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      </Routes>
     </Router>
-  );
-}
-
-function HomePage() {
-  return (
-    <div>
-      <h2>Welcome to Fintanik</h2>
-      <p>Your personal financial tracking application</p>
-    </div>
   );
 }
 
