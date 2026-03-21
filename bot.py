@@ -14,7 +14,7 @@ from telegram.ext import (
 
 from flows.student_flow import start_student_flow
 from dotenv import load_dotenv
-from commands.transaction import WAITING_FOR_AMOUNT, WAITING_FOR_AMOUNT_UPDATE, WAITING_FOR_CATEGORY, WAITING_FOR_CATEGORY_UPDATE, WAITING_FOR_DATE, WAITING_FOR_DATE_UPDATE, WAITING_FOR_NAME, WAITING_FOR_NAME_UPDATE, WAITING_FOR_SHOP_NAME, WAITING_FOR_SHOP_NAME_UPDATE, WAITING_FOR_MONTH_SELECTION, WAITING_FOR_DAY_SELECTION, handle_updating_field, receive_amount, receive_category, receive_date, receive_month_selection, receive_day_selection, receive_name, receive_shop_name, start_transaction, update_amount, update_category, update_date, update_name, update_shop_name
+from commands.transaction import WAITING_FOR_AMOUNT, WAITING_FOR_AMOUNT_UPDATE, WAITING_FOR_CATEGORY, WAITING_FOR_CATEGORY_UPDATE, WAITING_FOR_DATE, WAITING_FOR_DATE_UPDATE, WAITING_FOR_NAME, WAITING_FOR_NAME_UPDATE, WAITING_FOR_PHOTO, WAITING_FOR_SHOP_NAME, WAITING_FOR_SHOP_NAME_UPDATE, WAITING_FOR_MONTH_SELECTION, WAITING_FOR_DAY_SELECTION, handle_updating_field, receive_amount, receive_category, receive_date, receive_month_selection, receive_day_selection, receive_name, receive_photo, receive_shop_name, start_transaction, update_amount, update_category, update_date, update_name, update_shop_name
 from database import db
 from database.models import User, Transaction
 from handlers.payments import handle_payment_amount, handle_payment_date, start_payment_flow
@@ -153,6 +153,9 @@ def main():
         ],
         WAITING_FOR_MONTH_SELECTION: [
             MessageHandler(filters.TEXT & ~filters.COMMAND, receive_month_selection)
+        ],
+        WAITING_FOR_PHOTO: [
+            MessageHandler(filters.PHOTO | (filters.TEXT & ~filters.COMMAND), receive_photo)
         ],
         WAITING_FOR_DAY_SELECTION: [
             MessageHandler(filters.TEXT & ~filters.COMMAND, receive_day_selection)

@@ -1,6 +1,8 @@
 from telegram import Update
 from telegram.ext import ContextTypes
 import datetime
+import os
+from pathlib import Path
 
 def parse_date_range(context: ContextTypes.DEFAULT_TYPE, update: Update, text: str):
     """Parse date range from button text"""
@@ -118,3 +120,43 @@ def view_statistics_grouped(period, grouped_data, group_by):
     lines.append(f"{'TOTAL':<{max_group}} {total_amount:>12.2f} {total_count:>8}")
     
     return "\n".join(lines)
+
+async def save_receipt_photo(context, photo_file_id: str, shop_name: str, transaction_id: int) -> str:
+    """
+    Download and save receipt photo to filesystem
+    
+    Args:
+        context: Telegram context
+        photo_file_id: Telegram file_id
+        shop_name: Name of the shop for organizing photos
+        transaction_id: Transaction ID for filename
+        
+    Returns:
+        str: Path to saved photo (full system path for database storage)
+    """
+    # Clean shop name for filesystem (remove special characters)
+    safe_shop_name = "".join(c for c in shop_name if c.isalnum() or c in (' ', '_', '-')).strip()
+    safe_shop_name = safe_shop_name.replace(' ', '_') or 'Other'
+    
+    # Get project root directory (where bot.py is located)
+    project_root = Path(__file__).parent.parent  # Goes from utils/ to project root
+    
+    # Create full system path: /home/scb/fintanik/data/images/shopname/
+    base_dir = project_root / 'data' / 'images'
+    shop_dir = base_dir / safe_shop_name
+    
+    # mkdir with parents=True creates all intermediate directories
+    # exist_ok=True doesn't raise error if directory already exists
+    shop_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Download file
+    file = await context.bot.get_file(photo_file_id)
+    file_extension = file.file_path.split('.')[-1] if '.' in file.file_path else 'jpg'
+    filename = f"{transaction_id}.{file_extension}"
+    filepath = shop_dir / filename
+    
+    # Save to disk
+    await file.download_to_drive(str(filepath))
+    
+    # Return full path for database storage
+    return str(filepath)

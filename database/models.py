@@ -32,6 +32,7 @@ class Transaction(Base):
     amount = Column(Float, nullable=False)  # Store in cents
     category = Column(String(255), nullable=False)
     date = Column(DateTime, default=datetime.utcnow)
+    reciept_photo_name = Column(String(255), nullable=True, default=None)
     
     user = relationship("User", backref="transactions")
     

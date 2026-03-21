@@ -9,9 +9,15 @@ from menus.account_view.delete_transaction_menu import get_delete_list_menu
 from menus.account_view.view_menu import get_dates_menu
 from utils.decorators import is_authenticated
 from menus.account_view.view_menu import dates_keyboard
-from database.transactions.services import get_sorted_categories_by_popularity, get_sorted_shops_by_popularity
+from database.transactions.services import  get_sorted_shops_by_popularity
 from utils.config import Settings
 from utils.utils import parse_date_range
+from keyboards.transaction import (get_month_selection_keyboard, 
+                                   get_day_selection_keyboard,
+                                   get_categories_keyboard)
+
+logger = Settings.LOGGER
+
 # Update the conversation states at the top (add these new states)
 WAITING_FOR_AMOUNT = 1 
 WAITING_FOR_NAME = 2
@@ -28,52 +34,8 @@ WAITING_FOR_CATEGORY_UPDATE = 8
 WAITING_FOR_SHOP_NAME_UPDATE = 9
 WAITING_FOR_DATE_UPDATE = 10
 
-# Add helper function to get month selection keyboard
-def get_month_selection_keyboard():
-    """Create month selection keyboard for current and next month"""
-    today = datetime.datetime.now()
-    current_month = today.strftime("%B %Y")  # e.g., "March 2026"
-    next_month = (today.replace(day=1) + datetime.timedelta(days=32)).replace(day=1).strftime("%B %Y")
-    
-    keyboard = [
-        [KeyboardButton(current_month)],
-        [KeyboardButton(next_month)],
-        [KeyboardButton(f"{emoji('BACK')} BACK")]
-    ]
-    return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
-# Add helper function to get day selection keyboard
-def get_day_selection_keyboard(year, month):
-    """Create day selection keyboard in grid layout (7 columns) from today back to day 1"""
-    today = datetime.datetime.now()
-    
-    # If selected month is current month, show from today back to day 1
-    if year == today.year and month == today.month:
-        start_day = today.day
-    # If selected month is next month, show days from beginning
-    else:
-        start_day = min(today.day, (datetime.datetime(year, month, 1) + datetime.timedelta(days=32)).replace(day=1).day - 1)
-    
-    # Create a list of days from start_day down to 1
-    days = list(range(start_day, 0, -1))
-    
-    # Create grid keyboard (7 columns per row)
-    keyboard = []
-    row = []
-    for day in days:
-        row.append(KeyboardButton(str(day)))
-        if len(row) == 7:
-            keyboard.append(row)
-            row = []
-    
-    # Add remaining days in the last row
-    if row:
-        keyboard.append(row)
-    
-    # Add BACK button at the end
-    keyboard.append([KeyboardButton(f"{emoji('BACK')} BACK")])
-    
-    return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+
 
 async def receive_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
@@ -223,19 +185,6 @@ skip_keyboard = ReplyKeyboardMarkup(
     resize_keyboard=True
 )
 
-def get_categories_keyboard(context: ContextTypes.DEFAULT_TYPE):
-    """Create categories keyboard"""
-    default_categories = Settings.CATEGORIES
-    sorted_categories = get_sorted_categories_by_popularity()
-    print(f"DEBUG: Sorted categories = {sorted_categories}")
-    categories = [cat for cat in sorted_categories]
-    for cat in default_categories:
-        if cat not in categories:
-            categories.append(cat)
-    keyboard = [[KeyboardButton(category)] for category in categories]
-    keyboard.append([KeyboardButton(f"{emoji('BACK')} BACK")])
-    return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-
 
 def get_shop_keyboard(context: ContextTypes.DEFAULT_TYPE):
     """Create shop keyboard (if needed)"""
@@ -257,8 +206,9 @@ transaction_actions = {
     'amount': {'stage': WAITING_FOR_AMOUNT, 'next': 'name','prev':None, 'prompt': "Please enter an amount (e.g., 12.34):"},
     'name': {'stage': WAITING_FOR_NAME, 'next': 'category','prev':'amount', 'prompt': "Please enter the product name or press /skip:"},
     'category': {'stage': WAITING_FOR_CATEGORY, 'next': 'shop','prev':'name', 'prompt': "Please enter the category:"},
-    'shop': {'stage': WAITING_FOR_SHOP_NAME, 'next': 'date','prev':'category', 'prompt': "Please enter the shop name or press /skip:"},
-    'date': {'stage': WAITING_FOR_DATE, 'next': None,'prev':'shop', 'prompt': "Please enter the date (YYYY-MM-DD) or press TODAY"},
+    'shop': {'stage': WAITING_FOR_SHOP_NAME, 'next': 'photo','prev':'category', 'prompt': "Please enter the shop name or press /skip:"},
+    'photo': {'stage': WAITING_FOR_PHOTO, 'next': 'date','prev':'shop', 'prompt': "Please send a photo of the receipt or press /skip:"},
+    'date': {'stage': WAITING_FOR_DATE, 'next': None,'prev':'photo', 'prompt': "Please enter the date (YYYY-MM-DD) or press TODAY"},
 }
 
 async def start_transaction(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -280,25 +230,79 @@ def transaction_flow_info(context: ContextTypes.DEFAULT_TYPE):
 
 async def transaction_flow(update: Update, context: ContextTypes.DEFAULT_TYPE, action_key: str, transaction, skip_field=None):
     from menus.spendings_menu import get_spendings_menu
+    from utils.utils import save_receipt_photo  # Add import
+    
     if action_key:
         await update.message.reply_text(f"📝 Current Transaction Info:\n{transaction_flow_info(context)}")
         return await ask_for(update, context, transaction, action_key)
     elif action_key is None:
-        # Save transaction to DB
-        create_transaction( update.effective_user.id,
-                           transaction['amount'],
-                           transaction['category'],
-                           transaction.get('shop'),
-                           transaction.get('name'),
-                           transaction.get('date'))
+        # Save transaction to DB first (without photo path)
+        new_transaction = create_transaction(
+            update.effective_user.id,
+            transaction['amount'],
+            transaction['category'],
+            transaction.get('shop'),
+            transaction.get('name'),
+            transaction.get('date')
+        )
+        
+        # If photo was provided, save it and update transaction
+        photo_path = None
+        if transaction.get('photo'):
+            try:
+                photo_path = await save_receipt_photo(
+                    context,
+                    transaction['photo'],
+                    transaction.get('shop') or 'Other',
+                    new_transaction.id
+                )
+                # Update transaction with photo path
+                update_transaction(new_transaction.id, {'receipt_photo_name': photo_path})
+            except Exception as e:
+                logger.error(f"Error saving receipt photo: {e}")
+                await update.message.reply_text("⚠️ Photo could not be saved, but transaction was created.")
         
         await update.message.reply_text(
-            f"✅ Transaction !\n TRANSACTION INFO:\nPRODUCT NAME: {transaction.get('name')}\nAMOUNT: {transaction['amount']} zl.\nCATEGORY: {transaction['category']}\nSHOP: {transaction.get('shop')}\n",
+            f"✅ Transaction created!\n\n"
+            f"PRODUCT NAME: {transaction.get('name')}\n"
+            f"AMOUNT: {transaction['amount']} zl.\n"
+            f"CATEGORY: {transaction['category']}\n"
+            f"SHOP: {transaction.get('shop')}\n"
+            f"{'📸 Receipt saved' if photo_path else ''}",
             reply_markup=get_spendings_menu(update, context)
         )
         context.user_data.pop('transaction', None)
         return ConversationHandler.END
 
+# Add after receive_shop_name function (around line 360)
+async def receive_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle photo receipt or skip"""
+    if update.message.text and update.message.text.strip() == f"{emoji('SKIP')} Skip":
+        context.user_data['transaction']['photo'] = None
+        next_action = transaction_actions['photo']['next']
+        return await transaction_flow(update, context, action_key=next_action, transaction=context.user_data['transaction'])
+    
+    elif update.message.text and update.message.text.strip() == f"{emoji('BACK')} BACK":
+        prev = transaction_actions['photo']['prev']
+        context.user_data['transaction'][prev] = None
+        return await transaction_flow(update, context, action_key=prev, transaction=context.user_data['transaction'])
+    
+    elif update.message.photo:
+        # Get the largest photo size
+        photo = update.message.photo[-1]
+        context.user_data['transaction']['photo'] = photo.file_id
+        
+        await update.message.reply_text("✅ Receipt photo saved!")
+        
+        next_action = transaction_actions['photo']['next']
+        return await transaction_flow(update, context, action_key=next_action, transaction=context.user_data['transaction'])
+    
+    else:
+        await update.message.reply_text(
+            "❌ Please send a photo or press Skip:",
+            reply_markup=skip_keyboard
+        )
+        return WAITING_FOR_PHOTO
 
 
 async def receive_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -375,6 +379,8 @@ async def ask_for(update: Update, context: ContextTypes.DEFAULT_TYPE, transactio
             [[KeyboardButton("Today")], [KeyboardButton("Yesterday")], [KeyboardButton("Another")], [KeyboardButton(f"{emoji('BACK')} BACK")]],
             resize_keyboard=True
         )
+    elif action_key == 'photo':
+        reply_markup = skip_keyboard
     else:
         reply_markup = None
     
@@ -389,34 +395,8 @@ async def ask_for(update: Update, context: ContextTypes.DEFAULT_TYPE, transactio
 # UPDATE TRANSACTION FLOW
 # =================================================================================================
 
-# --------------------MENU KEYBOARDS--------------------
-def get_updating_field_menu():
-    updating_field_keyboard = [
-        [KeyboardButton("AMOUNT")],
-        [KeyboardButton("NAME")],
-        [KeyboardButton("CATEGORY")],
-        [KeyboardButton("SHOP")],
-        [KeyboardButton("DATE")],
-        [KeyboardButton("UPDATE TRANSACTION")],
-        [KeyboardButton(f"{emoji('BACK')} BACK")]
-    ]
-    return ReplyKeyboardMarkup(updating_field_keyboard, resize_keyboard=True)
-
-def get_update_list_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    update_list_keyboard = []
-    start, end = parse_date_range(update=update, context=context, text=context.user_data.get('selected_date_range'))
-    transaction_list = get_spendings(start_date=start, end_date=end)
-    for row in transaction_list:
-        # Format date as string without spaces
-        date_str = row.date.strftime("%Y-%m-%d") if row.date else "N/A"
-        # Use | as separator
-        button_text = f"{row.id}|{row.name or 'Unnamed'}|{row.amount}|{row.shop or 'N/A'}|{row.category or 'N/A'}|{date_str}"
-        update_list_keyboard.append([KeyboardButton(button_text)])
-    update_list_keyboard.append([KeyboardButton(f"{emoji('BACK')} BACK")])
-    return ReplyKeyboardMarkup(update_list_keyboard, resize_keyboard=True)
-
-
-
+from menus.spendings_menu import (get_update_list_menu,
+                                  get_updating_field_menu)
 
 async def handle_transaction_range(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle updating a transaction"""
