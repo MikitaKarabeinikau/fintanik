@@ -45,7 +45,10 @@ class Database:
     
     def get_session(self):
         """Get database session"""
-        return self.Session()
+        session = self.Session()
+        if not session.is_active:
+            session.rollback()
+        return session
     
     def close(self):
         """Close database connection"""
